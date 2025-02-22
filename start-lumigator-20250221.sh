@@ -161,7 +161,7 @@ install_docker_linux_rootless() {
 install_docker() {
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -e
 
 ######################################
 # 1. Explain the Script & Ask for Confirmation
