@@ -32,12 +32,11 @@ show_help() {
 ######################################
 
 check_docker_installed() {
-  if which docker &>/dev/null; then
+  if command -v docker > /dev/null; then
     echo "Docker CLI is already installed."
-    return 0
   else
-    echo "Docker CLI not found."
-    return 1
+    echo "Docker CLI not found. Please install it before proceeding."
+    exit 1
   fi
 }
 
