@@ -6,7 +6,14 @@
 # in a blocking sequence (Linux or macOS).
 # Waits until each step is done before continuing.
 
-set -e
+set -e  # Exit immediately on error
+
+# Ensure dependencies are installed
+echo "Checking dependencies..."
+command -v curl >/dev/null 2>&1 || { echo "Installing curl..."; sudo apt update && sudo apt install -y curl; }
+command -v docker >/dev/null 2>&1 || { echo "Installing Docker..."; curl -fsSL https://get.docker.com | sudo bash; }
+command -v docker-compose >/dev/null 2>&1 || { echo "Installing Docker Compose..."; sudo apt install -y docker-compose || sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose; }
+
 
 OS_TYPE="$(uname -s)"
 echo "Detected OS: $OS_TYPE"
