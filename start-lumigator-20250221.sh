@@ -26,7 +26,7 @@ show_help() {
 ######################################
 
 check_docker_installed() {
-  if command -v docker >/dev/null; then
+  if which -v docker >/dev/null; then
     echo "Docker CLI is already installed."
     return 0
   else
@@ -126,11 +126,6 @@ install_docker_linux_root() {
 
 install_docker_linux_rootless() {
   echo "==> Installing Rootless Docker..."
-
-  if ! command -v curl &>/dev/null; then
-    echo "ERROR: curl is required for installation."
-    exit 1
-  fi
 
   curl -fsSL https://get.docker.com/rootless -o get-docker-rootless.sh
   sh get-docker-rootless.sh --force
@@ -502,15 +497,15 @@ main() {
   ####### Checking tools ######################
   ###############################################
   echo "Checking if necessary tools are installed..."
-  command -v curl >/dev/null 2>&1 || {
+  which curl >/dev/null 2>&1 || {
     echo "Lumigator uses curl for helping you to install other components... Install it in your computer"
     exit 1
   }
-  command -v unzip >/dev/null 2>&1 || {
+  which unzip >/dev/null 2>&1 || {
     echo "Lumigator uses unzip for helping you to install other components... Install it in your computer"
     exit 1
   }
-  command -v make >/dev/null 2>&1 || {
+  which make >/dev/null 2>&1 || {
     echo "Lumigator uses make for helping you to install other components... Install it in your computer"
     exit 1
   }
