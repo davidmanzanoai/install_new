@@ -26,7 +26,7 @@ show_help() {
 ######################################
 
 check_docker_installed() {
-  if which -v docker >/dev/null; then
+  if type docker >/dev/null; then
     echo "Docker CLI is already installed."
     return 0
   else
@@ -562,15 +562,15 @@ main() {
   ####### Checking tools ######################
   ###############################################
   echo "Checking if necessary tools are installed..."
-  which curl >/dev/null 2>&1 || {
+  type curl >/dev/null 2>&1 || {
     echo "Lumigator uses curl for helping you to install other components... Install it in your computer"
     exit 1
   }
-  which unzip >/dev/null 2>&1 || {
+  type unzip >/dev/null 2>&1 || {
     echo "Lumigator uses unzip for helping you to install other components... Install it in your computer"
     exit 1
   }
-  which make >/dev/null 2>&1 || {
+  type make >/dev/null 2>&1 || {
     echo "Lumigator uses make for helping you to install other components... Install it in your computer"
     exit 1
   }
