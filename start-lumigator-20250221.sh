@@ -126,22 +126,87 @@ install_docker_linux_root() {
 
 install_docker_linux_rootless() {
   echo "==> Installing Rootless Docker..."
+#!/bin/bash
 
-  curl -fsSL https://get.docker.com/rootless -o get-docker-rootless.sh
-  sh get-docker-rootless.sh --force
+# Script to install Docker in rootless mode for a non-root user
 
-  export PATH="$HOME/.docker/bin:$PATH"
-  export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock"
+# Variables
+USER_HOME=$HOME
+DOCKER_ROOTLESS_DIR="$USER_HOME/.docker-rootless"
+DOCKER_VERSION="latest"  # You can specify a version like "24.0.7" if needed
+ARCH=$(uname -m)
 
-  if ! systemctl --user start docker &>/dev/null; then
-    nohup "$HOME/.docker/bin/dockerd-rootless.sh" >"$HOME/dockerd-rootless.log" 2>&1 &
-  fi
+# Check if running as root (we don't want this)
+if [ "$(id -u)" -eq 0 ]; then
+    echo "Error: This script should not be run as root. Run it as a regular user."
+    exit 1
+fi
 
-  if docker info &>/dev/null; then
-    echo "Rootless Docker is up and running!"
-  else
-    echo "Rootless Docker installation failed."
-  fi
+# Check for required tools using `type`
+for cmd in curl tar; do
+    if ! type "$cmd" > /dev/null 2>&1; then
+        echo "Error: $cmd is required but not installed. Ask an admin to install it."
+        exit 1
+    fi
+done
+
+# Check if newuidmap/newgidmap are available (needed for rootless mode)
+if ! type newuidmap > /dev/null 2>&1 || ! type newgidmap > /dev/null 2>&1; then
+    echo "Error: newuidmap and newgidmap are required for rootless mode."
+    echo "Ask an admin to install the 'uidmap' package."
+    exit 1
+fi
+
+# Check if sub-UID/GID ranges are configured
+USER_NAME=$(whoami)
+if ! grep -q "^$USER_NAME:" /etc/subuid || ! grep -q "^$USER_NAME:" /etc/subgid; then
+    echo "Error: Sub-UID and sub-GID ranges not configured for $USER_NAME in /etc/subuid and /etc/subgid."
+    echo "Ask an admin to add ranges, e.g., '$USER_NAME:100000:65536' to both files."
+    exit 1
+fi
+
+# Create directory for Docker rootless installation
+mkdir -p "$DOCKER_ROOTLESS_DIR" || {
+    echo "Error: Failed to create directory $DOCKER_ROOTLESS_DIR"
+    exit 1
+}
+
+# Download Docker rootless installation script
+echo "Downloading Docker rootless installation script..."
+curl -fsSL https://get.docker.com/rootless -o "$DOCKER_ROOTLESS_DIR/install-rootless.sh" || {
+    echo "Error: Failed to download rootless installation script"
+    exit 1
+}
+
+# Make the script executable
+chmod +x "$DOCKER_ROOTLESS_DIR/install-rootless.sh"
+
+# Run the rootless installation
+echo "Installing Docker in rootless mode..."
+bash "$DOCKER_ROOTLESS_DIR/install-rootless.sh" || {
+    echo "Error: Rootless installation failed"
+    exit 1
+}
+
+# Set up environment variables
+echo "Setting up environment variables..."
+cat << EOF >> "$USER_HOME/.bashrc"
+export PATH=\$HOME/bin:\$PATH
+export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
+EOF
+
+# Source the updated .bashrc
+source "$USER_HOME/.bashrc"
+
+# Verify installation
+echo "Verifying Docker installation..."
+docker version || {
+    echo "Error: Docker installation failed or not working"
+    exit 1
+}
+
+echo "Docker has been installed in rootless mode successfully!"
+echo "You can now use Docker without sudo. Run 'docker run hello-world' to test."
 }
 
 ######################################
