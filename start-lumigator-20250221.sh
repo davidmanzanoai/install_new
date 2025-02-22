@@ -182,7 +182,7 @@ Do you want to proceed?
 EOF
 
 read -rp "Type 'yes' to continue or anything else to cancel: " user_response
-if [[ "$user_response" != "yes" ]]; then
+if [ "$user_response" != "yes" ]]; then
   echo "Aborting installation."
   exit 0
 fi
@@ -207,7 +207,7 @@ case "$OS_TYPE" in
     fi
 
     read -rp "Do you want to install rootless Docker as well? (y/N): " enable_rootless
-    if [[ "$enable_rootless" =~ ^[yY] ]]; then
+    if [[ "$enable_rootless" =~ ^[yY] ]; then
       install_docker_linux_rootless
     fi
     ;;
