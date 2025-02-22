@@ -194,11 +194,10 @@ EOF
       fi
     else
       echo "Docker is not installed. Installing..."
-      read -rp "Do you want to install rootless Docker as well? (y/N): " enable_rootless
-      if [ "$enable_rootless" =~ ^[yY] ]; then
+      read -rp "Do you want to install rootless Docker as well? (Yes/no): " enable_rootless
+      if [ "$enable_rootless" != "no" ]; then
         install_docker_linux_rootless
       else
-
         install_docker_linux_root
       fi
     fi
