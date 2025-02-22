@@ -2,37 +2,31 @@
 
 set -e
 
-
 # This script supports the initial setup of Lumigator for developing and using all functionalities locally.
 # It requires Docker and Docker Compose to run. If they are not present on your machine, the script will install and activate them for you.
 
 # Help
 show_help() {
-    echo "Usage: $0 [OPTIONS]"
-    echo "Starts Lumigator by checking your setup or installing it."
-    echo ""
-    echo "Options:"
-    echo "  -d, --directory DIR   Specify the directory for installing the code (default: inside current directory)"
-    echo "  -o, --overwrite       Overwrite existing directory (lumigator)"
-    echo "  -m, --main            Github main branch of Lumigator (defaul is MVP tag)"
-    echo "  -h, --help            Display this help message"
-    exit 0
+  echo "Usage: $0 [OPTIONS]"
+  echo "Starts Lumigator by checking your setup or installing it."
+  echo ""
+  echo "Options:"
+  echo "  -d, --directory DIR   Specify the directory for installing the code (default: inside current directory)"
+  echo "  -o, --overwrite       Overwrite existing directory (lumigator)"
+  echo "  -m, --main            Github main branch of Lumigator (defaul is MVP tag)"
+  echo "  -h, --help            Display this help message"
+  exit 0
 }
 
-
-
-
-
 ################################################################################################################################
 ################################################################################################################################
-
 
 ######################################
 # Helper Functions
 ######################################
 
 check_docker_installed() {
-  if command -v docker > /dev/null; then
+  if command -v docker >/dev/null; then
     echo "Docker CLI is already installed."
     return 0
   else
@@ -62,7 +56,7 @@ ensure_docker_running_linux() {
 
 install_docker_mac() {
   echo "==> Installing Docker on macOS..."
-  
+
   if check_docker_installed; then
     echo "Docker is already installed."
   else
@@ -97,7 +91,7 @@ install_docker_mac() {
       echo "Docker Desktop installed successfully."
     fi
   fi
-  
+
   echo "Starting Docker Desktop..."
   open -a Docker
 
@@ -112,7 +106,7 @@ install_docker_mac() {
 
 install_docker_linux_root() {
   echo "==> Installing Docker (system-wide) on Linux..."
-  
+
   sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
   sudo apt-get update -y
   sudo apt-get install -y ca-certificates curl gnupg lsb-release
@@ -160,11 +154,11 @@ install_docker_linux_rootless() {
 ######################################
 install_docker() {
 
-######################################
-# 1. Explain the Script & Ask for Confirmation
-######################################
+  ######################################
+  # 1. Explain the Script & Ask for Confirmation
+  ######################################
 
-cat <<EOF
+  cat <<EOF
 This script will:
 - Detect your operating system (macOS or Linux).
 - Check if Docker is already installed and running.
@@ -178,15 +172,15 @@ You may be asked for your sudo password during installation.
 Do you want to proceed?
 EOF
 
-read -rp "Type 'yes' to continue or anything else to cancel: " user_response
-if [ "$user_response" != "yes" ]; then
-  echo "Aborting installation."
-  exit 0
-fi
+  read -rp "Type 'yes' to continue or anything else to cancel: " user_response
+  if [ "$user_response" != "yes" ]; then
+    echo "Aborting installation."
+    exit 0
+  fi
 
-echo "Detected OS: $OS_TYPE"
+  echo "Detected OS: $OS_TYPE"
 
-case "$OS_TYPE" in
+  case "$OS_TYPE" in
   macos)
     install_docker_mac
     ;;
@@ -200,24 +194,25 @@ case "$OS_TYPE" in
       fi
     else
       echo "Docker is not installed. Installing..."
-      install_docker_linux_root
+      read -rp "Do you want to install rootless Docker as well? (y/N): " enable_rootless
+      if [ "$enable_rootless" =~ ^[yY] ]; then
+        install_docker_linux_rootless
+      else
+
+        install_docker_linux_root
+      fi
     fi
 
-    read -rp "Do you want to install rootless Docker as well? (y/N): " enable_rootless
-    if [ "$enable_rootless" =~ ^[yY] ]; then
-      install_docker_linux_rootless
-    fi
     ;;
   *)
     echo "Unsupported OS: $OS_TYPE. Please install Docker manually."
     exit 1
     ;;
-esac
+  esac
 
-echo "Installation complete."
+  echo "Installation complete."
 
 }
-
 
 ################################################################################################################################
 ################################################################################################################################
@@ -351,8 +346,7 @@ EOF
 ######################################
 install_docker_compose() {
 
-
-case "$OS_TYPE" in
+  case "$OS_TYPE" in
   macos)
     echo "==> macOS detected."
     if check_compose_installed; then
@@ -390,36 +384,32 @@ case "$OS_TYPE" in
     echo "Please install Docker Compose manually. See https://docs.docker.com/compose/"
     exit 1
     ;;
-esac
+  esac
 
 }
 ################################################################################################################################
 ################################################################################################################################
-
 
 # Detect the OS
 detect_os() {
-    OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')  # Convert to lowercase for consistency
-    case "$(uname -s)" in
-        Linux*)     OS_TYPE="linux";;
-        Darwin*)    OS_TYPE="macos";;
-        CYGWIN*|MINGW*|MSYS*) OS_TYPE="windows";;
-        *)          echo "Unsupported OS: $(uname -s)"
-                    exit 1
-                    ;;
-    esac
-    echo "Operating System detected: $OS_TYPE"
-    return 0
+  OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]') # Convert to lowercase for consistency
+  case "$(uname -s)" in
+  Linux*) OS_TYPE="linux" ;;
+  Darwin*) OS_TYPE="macos" ;;
+  CYGWIN* | MINGW* | MSYS*) OS_TYPE="windows" ;;
+  *)
+    echo "Unsupported OS: $(uname -s)"
+    exit 1
+    ;;
+  esac
+  echo "Operating System detected: $OS_TYPE"
+  return 0
 
 }
-
-
-
 
 #########################
 ##### Main execution ####
 #########################
-
 
 # Default values
 LUMIGATOR_ROOT_DIR="$PWD"
@@ -432,115 +422,132 @@ LUMIGATOR_VERSION="0.1.0-alpha"
 LUMIGATOR_TARGET_DIR=""
 LUMIGATOR_URL="http://localhost:80"
 
-
 # Command line arguments
 while [ "$#" -gt 0 ]; do
-    case $1 in
-        -d|--directory)
-            LUMIGATOR_ROOT_DIR="$2"
-            shift ;;
-        -o|--overwrite) OVERWRITE_LUMIGATOR=true ;;
-        -m|--main)
-            LUMIGATOR_REPO_TAG="refs/heads/"
-            LUMIGATOR_VERSION="main";;
-        -h|--help) show_help ;;
-        *) echo "!!!! Unknown parameter passed: $1 Please check the help command"; 
-        show_help
-        exit 1 ;;
-    esac
+  case $1 in
+  -d | --directory)
+    LUMIGATOR_ROOT_DIR="$2"
     shift
+    ;;
+  -o | --overwrite) OVERWRITE_LUMIGATOR=true ;;
+  -m | --main)
+    LUMIGATOR_REPO_TAG="refs/heads/"
+    LUMIGATOR_VERSION="main"
+    ;;
+  -h | --help) show_help ;;
+  *)
+    echo "!!!! Unknown parameter passed: $1 Please check the help command"
+    show_help
+    exit 1
+    ;;
+  esac
+  shift
 done
 
-
 install_project() {
-    LUMIGATOR_TARGET_DIR="$LUMIGATOR_ROOT_DIR/$LUMIGATOR_FOLDER_NAME"
-    echo "Installing Lumigator in $LUMIGATOR_TARGET_DIR"
-    # Check if directory exists and handle overwrite
-    if [ -d "$LUMIGATOR_TARGET_DIR" ]; then
-        if [ "$OVERWRITE_LUMIGATOR" = true ]; then
-            echo "Overwriting existing directory..."
-            echo "Deleting $LUMIGATOR_TARGET_DIR"
-            rm -rf "$LUMIGATOR_TARGET_DIR"
-            mkdir -p "$LUMIGATOR_TARGET_DIR"
-        else
-            echo "Directory $LUMIGATOR_TARGET_DIR already exists. Use -o to overwrite."
-            exit 1
-        fi
+  LUMIGATOR_TARGET_DIR="$LUMIGATOR_ROOT_DIR/$LUMIGATOR_FOLDER_NAME"
+  echo "Installing Lumigator in $LUMIGATOR_TARGET_DIR"
+  # Check if directory exists and handle overwrite
+  if [ -d "$LUMIGATOR_TARGET_DIR" ]; then
+    if [ "$OVERWRITE_LUMIGATOR" = true ]; then
+      echo "Overwriting existing directory..."
+      echo "Deleting $LUMIGATOR_TARGET_DIR"
+      rm -rf "$LUMIGATOR_TARGET_DIR"
+      mkdir -p "$LUMIGATOR_TARGET_DIR"
     else
-        # Installation directory created, didn't exist
-        mkdir -p "$LUMIGATOR_TARGET_DIR"
+      echo "Directory $LUMIGATOR_TARGET_DIR already exists. Use -o to overwrite."
+      exit 1
     fi
+  else
+    # Installation directory created, didn't exist
+    mkdir -p "$LUMIGATOR_TARGET_DIR"
+  fi
 
-    # Download based on method
-    echo "Downloading ZIP file...${LUMIGATOR_REPO_TAG}${LUMIGATOR_VERSION}.zip"
-    curl -L -o "lumigator.zip" "${LUMIGATOR_REPO_URL}/archive/${LUMIGATOR_REPO_TAG}${LUMIGATOR_VERSION}.zip"
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to download the file from ${LUMIGATOR_REPO_URL}/archive/${LUMIGATOR_REPO_TAG}${LUMIGATOR_VERSION}.zip"
-        exit 1
-    else
-        echo "File downloaded successfully: ${LUMIGATOR_REPO_URL}/archive/${LUMIGATOR_REPO_TAG}${LUMIGATOR_VERSION}.zip"
-    fi
-    unzip lumigator.zip > /dev/null
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to unzip the file"
-        exit 1
-    fi
+  # Download based on method
+  echo "Downloading ZIP file...${LUMIGATOR_REPO_TAG}${LUMIGATOR_VERSION}.zip"
+  curl -L -o "lumigator.zip" "${LUMIGATOR_REPO_URL}/archive/${LUMIGATOR_REPO_TAG}${LUMIGATOR_VERSION}.zip"
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to download the file from ${LUMIGATOR_REPO_URL}/archive/${LUMIGATOR_REPO_TAG}${LUMIGATOR_VERSION}.zip"
+    exit 1
+  else
+    echo "File downloaded successfully: ${LUMIGATOR_REPO_URL}/archive/${LUMIGATOR_REPO_TAG}${LUMIGATOR_VERSION}.zip"
+  fi
+  unzip lumigator.zip >/dev/null
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to unzip the file"
+    exit 1
+  fi
 
-    echo "Moving extracted contents to $LUMIGATOR_TARGET_DIR"
-    mv lumigator-${LUMIGATOR_VERSION}/* "$LUMIGATOR_TARGET_DIR" || { echo "Failed to move files"; exit 1; }
-    mv lumigator-${LUMIGATOR_VERSION}/.* "$LUMIGATOR_TARGET_DIR" 2>/dev/null || true
-    rmdir lumigator-${LUMIGATOR_VERSION} || { echo "Failed to remove empty directory"; exit 1; }
-    rm lumigator.zip || { echo "Failed to remove ZIP file"; exit 1; }
+  echo "Moving extracted contents to $LUMIGATOR_TARGET_DIR"
+  mv lumigator-${LUMIGATOR_VERSION}/* "$LUMIGATOR_TARGET_DIR" || {
+    echo "Failed to move files"
+    exit 1
+  }
+  mv lumigator-${LUMIGATOR_VERSION}/.* "$LUMIGATOR_TARGET_DIR" 2>/dev/null || true
+  rmdir lumigator-${LUMIGATOR_VERSION} || {
+    echo "Failed to remove empty directory"
+    exit 1
+  }
+  rm lumigator.zip || {
+    echo "Failed to remove ZIP file"
+    exit 1
+  }
 }
 
 main() {
-    echo "*****************************************************************************************"
-    echo "*************************** STARTING LUMIGATOR BY MOZILLA.AI ****************************"
-    echo "*****************************************************************************************"
+  echo "*****************************************************************************************"
+  echo "*************************** STARTING LUMIGATOR BY MOZILLA.AI ****************************"
+  echo "*****************************************************************************************"
 
+  ###############################################
+  ####### Checking tools ######################
+  ###############################################
+  echo "Checking if necessary tools are installed..."
+  command -v curl >/dev/null 2>&1 || {
+    echo "Lumigator uses curl for helping you to install other components... Install it in your computer"
+    exit 1
+  }
+  command -v unzip >/dev/null 2>&1 || {
+    echo "Lumigator uses unzip for helping you to install other components... Install it in your computer"
+    exit 1
+  }
+  command -v make >/dev/null 2>&1 || {
+    echo "Lumigator uses make for helping you to install other components... Install it in your computer"
+    exit 1
+  }
 
-###############################################
-####### Checking tools ######################
-###############################################
-echo "Checking if necessary tools are installed..."
-command -v curl >/dev/null 2>&1 || { echo "Lumigator uses curl for helping you to install other components... Install it in your computer" ; exit 1; }
-command -v unzip >/dev/null 2>&1 || { echo "Lumigator uses unzip for helping you to install other components... Install it in your computer" ; exit 1; }
-command -v make >/dev/null 2>&1 || { echo "Lumigator uses make for helping you to install other components... Install it in your computer" ; exit 1; }
+  ######################################################
+  detect_os
+  echo "Aqui $OS_TYPE"
+  install_docker
+  install_docker_compose
 
-######################################################
-    detect_os
-    echo "Aqui $OS_TYPE"
-    install_docker 
-    install_docker_compose
+  install_project
 
-    install_project
+  cd $LUMIGATOR_TARGET_DIR || error 1
 
-    cd $LUMIGATOR_TARGET_DIR || error 1
+  # Start the Lumigator service
+  if [ -f "Makefile" ]; then
+    make david-start-lumigator || {
+      echo "Failed to start Lumigator. Check if your Docker service is active."
+      exit 1
+    }
+  else
+    echo "Makefile to build and start $LUMIGATOR_REPO_NAME not found"
+    exit 1
+  fi
 
-    # Start the Lumigator service
-    if [ -f "Makefile" ]; then
-        make david-start-lumigator || {
-            echo "Failed to start Lumigator. Check if your Docker service is active."
-            exit 1        
-        }
-    else
-        echo "Makefile to build and start $LUMIGATOR_REPO_NAME not found"
-        exit 1
-    fi
+  echo "=== All installation steps completed successfully. ==="
 
+  #######
 
-
-echo "=== All installation steps completed successfully. ==="
-
-#######
-
-    # Open the browser
-    case "$OS" in
-        linux*) xdg-open $LUMIGATOR_URL ;;
-        darwin*)    open $LUMIGATOR_URL ;;
-        *)          echo "Browser launch not supported for this OS. Type $LUMIGATOR_URL in your browser" ;;
-    esac
-    echo "To close $LUMIGATOR_REPO_NAME, close $LUMIGATOR_URL in your browsers and type make stop-lumigator in your console inside the $LUMIGATOR_TARGET_DIR folder"
+  # Open the browser
+  case "$OS" in
+  linux*) xdg-open $LUMIGATOR_URL ;;
+  darwin*) open $LUMIGATOR_URL ;;
+  *) echo "Browser launch not supported for this OS. Type $LUMIGATOR_URL in your browser" ;;
+  esac
+  echo "To close $LUMIGATOR_REPO_NAME, close $LUMIGATOR_URL in your browsers and type make stop-lumigator in your console inside the $LUMIGATOR_TARGET_DIR folder"
 }
 
 # Run the main function
