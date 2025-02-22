@@ -32,7 +32,7 @@ show_help() {
 ######################################
 
 check_docker_installed() {
-  if command -v docker &>/dev/null; then
+  if which docker &>/dev/null; then
     echo "Docker CLI is already installed."
     return 0
   else
@@ -159,9 +159,6 @@ install_docker_linux_rootless() {
 # Main Script Execution
 ######################################
 install_docker() {
-#!/usr/bin/env bash
-
-set -e
 
 ######################################
 # 1. Explain the Script & Ask for Confirmation
@@ -182,7 +179,7 @@ Do you want to proceed?
 EOF
 
 read -rp "Type 'yes' to continue or anything else to cancel: " user_response
-if [ "$user_response" != "yes" ]]; then
+if [ "$user_response" != "yes" ]; then
   echo "Aborting installation."
   exit 0
 fi
@@ -207,7 +204,7 @@ case "$OS_TYPE" in
     fi
 
     read -rp "Do you want to install rootless Docker as well? (y/N): " enable_rootless
-    if [[ "$enable_rootless" =~ ^[yY] ]; then
+    if [ "$enable_rootless" =~ ^[yY] ]; then
       install_docker_linux_rootless
     fi
     ;;
