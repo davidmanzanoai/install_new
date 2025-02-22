@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -e
 
 
 # This script supports the initial setup of Lumigator for developing and using all functionalities locally.
