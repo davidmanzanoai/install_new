@@ -75,8 +75,12 @@ if [ ! -f "$DOCKER_ROOTLESS_DIR/docker.tgz" ]; then
 fi
 echo "Main tarball contents:"
 tar -tzf "$DOCKER_ROOTLESS_DIR/docker.tgz"
-tar -xzf "$DOCKER_ROOTLESS_DIR/docker.tgz" -C "$BIN_DIR" --strip-components=1 docker/docker docker/dockerd --overwrite || {
-    echo "Error: Failed to extract docker and dockerd binaries"
+tar -xzf "$DOCKER_ROOTLESS_DIR/docker.tgz" -C "$BIN_DIR" --strip-components=1 \
+    docker/docker \
+    docker/dockerd \
+    docker/containerd \
+    docker/runc --overwrite || {
+    echo "Error: Failed to extract docker, dockerd, containerd, and runc binaries"
     exit 1
 }
 
@@ -95,7 +99,7 @@ fi
 echo "Rootless extras tarball contents:"
 tar -tzf "$DOCKER_ROOTLESS_DIR/docker-rootless.tgz"
 
-# Extract rootless binaries, including rootlesskit-docker-proxy
+# Extract rootless binaries
 tar -xzf "$DOCKER_ROOTLESS_DIR/docker-rootless.tgz" -C "$BIN_DIR" --strip-components=1 \
     docker-rootless-extras/dockerd-rootless.sh \
     docker-rootless-extras/rootlesskit \
@@ -113,7 +117,7 @@ curl -fsSL https://github.com/rootless-containers/slirp4netns/releases/download/
 chmod +x "$BIN_DIR/slirp4netns"
 
 # Verify required binaries exist
-for bin in docker dockerd dockerd-rootless.sh rootlesskit rootlesskit-docker-proxy slirp4netns; do
+for bin in docker dockerd containerd runc dockerd-rootless.sh rootlesskit rootlesskit-docker-proxy slirp4netns; do
     if [ ! -f "$BIN_DIR/$bin" ]; then
         echo "Error: $bin not found in $BIN_DIR after extraction"
         ls -l "$BIN_DIR"
@@ -122,7 +126,7 @@ for bin in docker dockerd dockerd-rootless.sh rootlesskit rootlesskit-docker-pro
 done
 
 # Ensure binaries are executable
-chmod +x "$BIN_DIR/docker" "$BIN_DIR/dockerd" "$BIN_DIR/dockerd-rootless.sh" "$BIN_DIR/rootlesskit" "$BIN_DIR/rootlesskit-docker-proxy" "$BIN_DIR/slirp4netns"
+chmod +x "$BIN_DIR/docker" "$BIN_DIR/dockerd" "$BIN_DIR/containerd" "$BIN_DIR/runc" "$BIN_DIR/dockerd-rootless.sh" "$BIN_DIR/rootlesskit" "$BIN_DIR/rootlesskit-docker-proxy" "$BIN_DIR/slirp4netns"
 
 # Set environment variables
 echo "Setting environment variables..."
