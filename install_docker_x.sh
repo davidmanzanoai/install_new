@@ -9,7 +9,8 @@ BIN_DIR="$USER_HOME/bin"
 XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
 
-echo "New version ......."
+# Set PATH early to include BIN_DIR
+export PATH="$BIN_DIR:$PATH"
 
 # Diagnostic function
 check_prereq() {
@@ -141,7 +142,7 @@ done
 # Ensure binaries are executable
 chmod +x "$BIN_DIR/docker" "$BIN_DIR/dockerd" "$BIN_DIR/containerd" "$BIN_DIR/runc" "$BIN_DIR/containerd-shim-runc-v2" "$BIN_DIR/dockerd-rootless.sh" "$BIN_DIR/rootlesskit" "$BIN_DIR/rootlesskit-docker-proxy" "$BIN_DIR/slirp4netns"
 
-# Set environment variables
+# Set environment variables for future sessions
 echo "Setting environment variables..."
 cat << EOF > "$USER_HOME/.bashrc.docker"
 export PATH=$BIN_DIR:\$PATH
@@ -150,11 +151,10 @@ EOF
 if ! grep -q ".bashrc.docker" "$USER_HOME/.bashrc"; then
     echo ". $USER_HOME/.bashrc.docker" >> "$USER_HOME/.bashrc"
 fi
-. "$USER_HOME/.bashrc"
 
-# Start Docker daemon manually with iptables disabled and cgroupfs, ensuring PATH
+# Start Docker daemon manually with iptables disabled and cgroupfs
 echo "Starting Docker daemon..."
-PATH="$BIN_DIR:$PATH" "$BIN_DIR/dockerd-rootless.sh" \
+"$BIN_DIR/dockerd-rootless.sh" \
     --data-root "$USER_HOME/.local/share/docker" \
     --pidfile "$DOCKER_ROOTLESS_DIR/docker.pid" \
     --log-level debug \
@@ -171,5 +171,5 @@ if ! "$BIN_DIR/docker" version > /dev/null 2>&1; then
 fi
 
 echo "Docker rootless installed successfully!"
-echo "Test with: 'docker run hello-world'"
+echo "Test with: '$BIN_DIR/docker run hello-world' or source your .bashrc and use 'docker run hello-world'"
 echo "Stop daemon: 'kill \$(cat $DOCKER_ROOTLESS_DIR/docker.pid)'"
