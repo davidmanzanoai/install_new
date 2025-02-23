@@ -79,8 +79,9 @@ tar -xzf "$DOCKER_ROOTLESS_DIR/docker.tgz" -C "$BIN_DIR" --strip-components=1 \
     docker/docker \
     docker/dockerd \
     docker/containerd \
-    docker/runc --overwrite || {
-    echo "Error: Failed to extract docker, dockerd, containerd, and runc binaries"
+    docker/runc \
+    docker/containerd-shim-runc-v2 --overwrite || {
+    echo "Error: Failed to extract docker, dockerd, containerd, runc, and containerd-shim-runc-v2 binaries"
     exit 1
 }
 
@@ -117,7 +118,7 @@ curl -fsSL https://github.com/rootless-containers/slirp4netns/releases/download/
 chmod +x "$BIN_DIR/slirp4netns"
 
 # Verify required binaries exist
-for bin in docker dockerd containerd runc dockerd-rootless.sh rootlesskit rootlesskit-docker-proxy slirp4netns; do
+for bin in docker dockerd containerd runc containerd-shim-runc-v2 dockerd-rootless.sh rootlesskit rootlesskit-docker-proxy slirp4netns; do
     if [ ! -f "$BIN_DIR/$bin" ]; then
         echo "Error: $bin not found in $BIN_DIR after extraction"
         ls -l "$BIN_DIR"
@@ -126,7 +127,7 @@ for bin in docker dockerd containerd runc dockerd-rootless.sh rootlesskit rootle
 done
 
 # Ensure binaries are executable
-chmod +x "$BIN_DIR/docker" "$BIN_DIR/dockerd" "$BIN_DIR/containerd" "$BIN_DIR/runc" "$BIN_DIR/dockerd-rootless.sh" "$BIN_DIR/rootlesskit" "$BIN_DIR/rootlesskit-docker-proxy" "$BIN_DIR/slirp4netns"
+chmod +x "$BIN_DIR/docker" "$BIN_DIR/dockerd" "$BIN_DIR/containerd" "$BIN_DIR/runc" "$BIN_DIR/containerd-shim-runc-v2" "$BIN_DIR/dockerd-rootless.sh" "$BIN_DIR/rootlesskit" "$BIN_DIR/rootlesskit-docker-proxy" "$BIN_DIR/slirp4netns"
 
 # Set environment variables
 echo "Setting environment variables..."
