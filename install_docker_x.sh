@@ -8,7 +8,7 @@ DOCKER_ROOTLESS_DIR="$USER_HOME/.docker-rootless"
 BIN_DIR="$USER_HOME/bin"
 XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
-echo "Nueva version....9:25"
+
 # Set PATH early to include BIN_DIR
 export PATH="$BIN_DIR:$PATH"
 
@@ -49,7 +49,7 @@ fi
 
 # Verify XDG_RUNTIME_DIR
 if [ ! -w "$XDG_RUNTIME_DIR" ]; then
-    echo "Error: $XDG_RUNTIME_DIR not writable. Using fallback: $USER_HOME/run"
+    echo "Warning: $XDG_RUNTIME_DIR not writable. Using fallback: $USER_HOME/run"
     XDG_RUNTIME_DIR="$USER_HOME/run"
     DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
     mkdir -p "$XDG_RUNTIME_DIR" || { echo "Error: Cannot create $XDG_RUNTIME_DIR"; exit 1; }
@@ -162,13 +162,25 @@ echo "Starting Docker daemon..."
     --userland-proxy=true \
     --exec-opt native.cgroupdriver=cgroupfs > "$DOCKER_ROOTLESS_DIR/dockerd.log" 2>&1 &
 
-# Wait and verify
-sleep 3
-if ! "$BIN_DIR/docker" version > /dev/null 2>&1; then
-    echo "Error: Docker failed to start. Check $DOCKER_ROOTLESS_DIR/dockerd.log:"
-    cat "$DOCKER_ROOTLESS_DIR/dockerd.log"
-    exit 1
-fi
+# Wait and verify with retry
+echo "Verifying Docker daemon startup..."
+sleep 10
+attempts=3
+for ((i=1; i<=attempts; i++)); do
+    if "$BIN_DIR/docker" version > /dev/null 2>&1; then
+        echo "Docker daemon verified successfully on attempt $i"
+        break
+    fi
+    if [ $i -eq $attempts ]; then
+        echo "Error: Docker failed to start after $attempts attempts. Check $DOCKER_ROOTLESS_DIR/dockerd.log:"
+        cat "$DOCKER_ROOTLESS_DIR/dockerd.log"
+        echo "Current PATH: $PATH"
+        echo "Docker binary check: $(ls -l $BIN_DIR/docker)"
+        exit 1
+    fi
+    echo "Attempt $i failed, retrying in 5 seconds..."
+    sleep 5
+done
 
 echo "Docker rootless installed successfully!"
 echo "Test with: '$BIN_DIR/docker run hello-world' or source your .bashrc and use 'docker run hello-world'"
