@@ -142,7 +142,7 @@ done
 # Ensure binaries are executable
 chmod +x "$BIN_DIR/docker" "$BIN_DIR/dockerd" "$BIN_DIR/containerd" "$BIN_DIR/runc" "$BIN_DIR/containerd-shim-runc-v2" "$BIN_DIR/dockerd-rootless.sh" "$BIN_DIR/rootlesskit" "$BIN_DIR/rootlesskit-docker-proxy" "$BIN_DIR/slirp4netns"
 
-# Set environment variables for future sessions
+# Set environment variables for future sessions and current shell
 echo "Setting environment variables..."
 cat << EOF > "$USER_HOME/.bashrc.docker"
 export PATH=$BIN_DIR:\$PATH
@@ -151,6 +151,8 @@ EOF
 if ! grep -q ".bashrc.docker" "$USER_HOME/.bashrc"; then
     echo ". $USER_HOME/.bashrc.docker" >> "$USER_HOME/.bashrc"
 fi
+# Source .bashrc to apply to current session
+source "$USER_HOME/.bashrc"
 
 # Start Docker daemon manually with iptables disabled and cgroupfs
 echo "Starting Docker daemon..."
@@ -185,5 +187,5 @@ while [ $i -le $attempts ]; do
 done
 
 echo "Docker rootless installed successfully!"
-echo "Test with: '$BIN_DIR/docker run hello-world' or source your .bashrc and use 'docker run hello-world'"
+echo "Test with: 'docker run hello-world' (PATH is updated in this session)"
 echo "Stop daemon: 'kill \$(cat $DOCKER_ROOTLESS_DIR/docker.pid)'"
