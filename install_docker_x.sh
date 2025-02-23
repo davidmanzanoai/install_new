@@ -52,6 +52,16 @@ if [ ! -w "$XDG_RUNTIME_DIR" ]; then
     mkdir -p "$XDG_RUNTIME_DIR" || { echo "Error: Cannot create $XDG_RUNTIME_DIR"; exit 1; }
 fi
 
+# Stop any running Docker processes
+echo "Stopping any running Docker processes..."
+if [ -f "$DOCKER_ROOTLESS_DIR/docker.pid" ]; then
+    kill $(cat "$DOCKER_ROOTLESS_DIR/docker.pid") 2>/dev/null || true
+    sleep 1  # Give it a moment to shut down
+fi
+pkill -u "$USER_NAME" -f "dockerd-rootless.sh" 2>/dev/null || true
+pkill -u "$USER_NAME" -f "dockerd" 2>/dev/null || true
+pkill -u "$USER_NAME" -f "containerd" 2>/dev/null || true
+
 # Clean up previous attempts
 rm -rf "$DOCKER_ROOTLESS_DIR" "$BIN_DIR/docker"* "$USER_HOME/.local/share/docker" "$USER_HOME/.config/systemd/user/docker.service" "$BIN_DIR/docker-rootless-extras" "$BIN_DIR/slirp4netns"
 
