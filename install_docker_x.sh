@@ -166,7 +166,8 @@ echo "Starting Docker daemon..."
 echo "Verifying Docker daemon startup..."
 sleep 10
 attempts=3
-for ((i=1; i<=attempts; i++)); do
+i=1
+while [ $i -le $attempts ]; do
     if "$BIN_DIR/docker" version > /dev/null 2>&1; then
         echo "Docker daemon verified successfully on attempt $i"
         break
@@ -180,6 +181,7 @@ for ((i=1; i<=attempts; i++)); do
     fi
     echo "Attempt $i failed, retrying in 5 seconds..."
     sleep 5
+    i=$((i + 1))
 done
 
 echo "Docker rootless installed successfully!"
