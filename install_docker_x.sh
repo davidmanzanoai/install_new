@@ -9,6 +9,8 @@ BIN_DIR="$USER_HOME/bin"
 XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
 
+
+echo "This version assumes that you have already installed uidmap and have the necessary permissions to run it."
 # Set PATH early to include BIN_DIR
 export PATH="$BIN_DIR:$PATH"
 
