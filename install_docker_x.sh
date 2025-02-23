@@ -8,7 +8,7 @@ DOCKER_ROOTLESS_DIR="$USER_HOME/.docker-rootless"
 BIN_DIR="$USER_HOME/bin"
 XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
-
+echo "Nueva version....9:25"
 # Set PATH early to include BIN_DIR
 export PATH="$BIN_DIR:$PATH"
 
