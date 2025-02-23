@@ -139,12 +139,14 @@ if ! grep -q ".bashrc.docker" "$USER_HOME/.bashrc"; then
 fi
 . "$USER_HOME/.bashrc"
 
-# Start Docker daemon manually
+# Start Docker daemon manually with iptables disabled
 echo "Starting Docker daemon..."
 "$BIN_DIR/dockerd-rootless.sh" \
     --data-root "$USER_HOME/.local/share/docker" \
     --pidfile "$DOCKER_ROOTLESS_DIR/docker.pid" \
-    --log-level debug > "$DOCKER_ROOTLESS_DIR/dockerd.log" 2>&1 &
+    --log-level debug \
+    --iptables=false \
+    --userland-proxy=true > "$DOCKER_ROOTLESS_DIR/dockerd.log" 2>&1 &
 
 # Wait and verify
 sleep 3
