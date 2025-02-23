@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to install Docker rootless on Debian without sudo
+# Script to install Docker rootless on Debian without sudo (adjusted for system-wide uidmap)
 
 # Variables
 USER_HOME=$HOME
@@ -8,6 +8,8 @@ DOCKER_ROOTLESS_DIR="$USER_HOME/.docker-rootless"
 BIN_DIR="$USER_HOME/bin"
 XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
+
+echo "New version ......."
 
 # Diagnostic function
 check_prereq() {
@@ -150,9 +152,9 @@ if ! grep -q ".bashrc.docker" "$USER_HOME/.bashrc"; then
 fi
 . "$USER_HOME/.bashrc"
 
-# Start Docker daemon manually with iptables disabled and cgroupfs
+# Start Docker daemon manually with iptables disabled and cgroupfs, ensuring PATH
 echo "Starting Docker daemon..."
-"$BIN_DIR/dockerd-rootless.sh" \
+PATH="$BIN_DIR:$PATH" "$BIN_DIR/dockerd-rootless.sh" \
     --data-root "$USER_HOME/.local/share/docker" \
     --pidfile "$DOCKER_ROOTLESS_DIR/docker.pid" \
     --log-level debug \
