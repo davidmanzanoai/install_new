@@ -75,7 +75,7 @@ echo "  - $USER_HOME/.config/systemd/user/docker.service"
 echo "  - $BIN_DIR/docker-rootless-extras"
 echo "  - $BIN_DIR/slirp4netns"
 read -p "Do you want to proceed? (y/N): " confirm
-if [ "$confirm" != "y" && "$confirm" != "Y" ]; then
+if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
     echo "Aborting."
     exit 1
 fi
