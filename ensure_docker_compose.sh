@@ -11,12 +11,9 @@ set -e
 USER_HOME="$HOME"
 BIN_DIR="$USER_HOME/bin"
 
-# Verbosity control (1 = verbose, 0 = quiet)
-VERBOSE=1
+# Verbose output function (always verbose, no quiet option)
 log() {
-	if [ "$VERBOSE" -eq 1 ]; then
-		printf '%s\n' "$*"
-	fi
+	printf '%s\n' "$*"
 }
 
 # Detect OS
@@ -32,6 +29,44 @@ Linux)
 	OS_TYPE="unknown"
 	;;
 esac
+
+# Detect architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+x86_64)
+	COMPOSE_ARCH="x86_64"
+	;;
+aarch64)
+	COMPOSE_ARCH="aarch64"
+	;;
+armv7l)
+	COMPOSE_ARCH="armv7"
+	;;
+*)
+	log "Unsupported architecture: $ARCH"
+	log "Supported architectures: x86_64, aarch64, armv7l"
+	exit 1
+	;;
+esac
+
+# Fetch latest Docker Compose version from GitHub API
+get_latest_compose_version() {
+	log "Fetching latest Docker Compose version..."
+	if ! command -v curl >/dev/null 2>&1; then
+		log "Error: curl is required to fetch the latest version."
+		log "Install curl and rerun the script."
+		exit 1
+	fi
+	# Use GitHub API to get the latest release tag
+	latest_version=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" | grep '"tag_name":' | sed 's/.*"tag_name": "\(.*\)",/\1/')
+	if [ -z "$latest_version" ]; then
+		log "Error: Failed to fetch latest Docker Compose version."
+		log "Check network connectivity or GitHub API availability."
+		exit 1
+	fi
+	log "Latest version detected: $latest_version"
+	printf '%s' "$latest_version"
+}
 
 ######################################
 # Helper: Check Docker CLI presence
@@ -130,7 +165,7 @@ install_compose_linux_root() {
 
 	if ! sudo -n true >/dev/null 2>&1; then
 		log "Warning: sudo privileges required for root-based installation."
-		log "Run as root or use rootless install option (-r flag) or answer 'y' to rootless prompt."
+		log "Run as root or choose rootless installation when prompted."
 		exit 1
 	fi
 
@@ -170,8 +205,8 @@ install_compose_linux_root() {
 # Linux Install Docker Compose (Rootless)
 ######################################
 install_compose_linux_rootless() {
-	compose_version="v2.24.6"  # Update to latest stable version as needed
-	compose_url="https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-x86_64"
+	compose_version=$(get_latest_compose_version)
+	compose_url="https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-${COMPOSE_ARCH}"
 	compose_binary="$BIN_DIR/docker-compose"
 
 	log "==> Installing Docker Compose in rootless mode..."
@@ -188,7 +223,7 @@ install_compose_linux_rootless() {
 	fi
 
 	# Download Docker Compose binary
-	log "Downloading Docker Compose ${compose_version}..."
+	log "Downloading Docker Compose ${compose_version} for ${COMPOSE_ARCH}..."
 	if ! curl -fsSL "$compose_url" -o "$compose_binary"; then
 		log "Error: Failed to download Docker Compose from $compose_url"
 		exit 1
@@ -232,25 +267,6 @@ setup_rootless_env() {
 # Main function
 ######################################
 install_docker_compose() {
-	rootless_mode=0
-
-	# Parse flags
-	while [ $# -gt 0 ]; do
-		case "$1" in
-		-q | --quiet)
-			VERBOSE=0
-			shift
-			;;
-		-r | --rootless)
-			rootless_mode=1
-			shift
-			;;
-		*)
-			shift
-			;;
-		esac
-	done
-
 	case "$OS_TYPE" in
 	macos)
 		log "==> macOS detected."
@@ -267,11 +283,8 @@ install_docker_compose() {
 		if check_compose_installed; then
 			log "Docker Compose is already installed."
 			check_compose_version
-		elif [ "$rootless_mode" -eq 1 ]; then
-			install_compose_linux_rootless
-			setup_rootless_env
 		else
-			log "Do you want to install Docker Compose in rootless mode instead of root-based? (y/N): "
+			log "Do you want to install Docker Compose in rootless mode (y) or root-based mode (n)? (y/N): "
 			IFS= read -r resp || resp="N"
 			case "$resp" in
 			[yY]*)
@@ -308,5 +321,5 @@ install_docker_compose() {
 	esac
 }
 
-# Run the main function with passed arguments
-install_docker_compose "$@"
+# Run the main function (no parameters accepted)
+install_docker_compose
