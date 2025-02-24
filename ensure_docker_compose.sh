@@ -15,7 +15,6 @@ BIN_DIR="$USER_HOME/bin"
 VERBOSE=1
 log() {
 	if [ "$VERBOSE" -eq 1 ]; then
-		# Use printf for POSIX compatibility (echo behavior varies)
 		printf '%s\n' "$*"
 	fi
 }
@@ -74,7 +73,6 @@ check_compose_version() {
 # Helper: Detect rootless Docker
 ######################################
 is_rootless_docker() {
-	# Check DOCKER_HOST or socket existence
 	if [ -n "$DOCKER_HOST" ] && echo "$DOCKER_HOST" | grep '^unix:///run/user/[0-9][0-9]* /docker.sock' >/dev/null 2>&1; then
 		return 0
 	elif [ -S "/run/user/$(id -u)/docker.sock" ]; then
@@ -132,12 +130,24 @@ install_compose_linux_root() {
 
 	if ! sudo -n true >/dev/null 2>&1; then
 		log "Warning: sudo privileges required for root-based installation."
-		log "Run as root or use rootless install option (-r flag)."
+		log "Run as root or use rootless install option (-r flag) or answer 'y' to rootless prompt."
 		exit 1
 	fi
 
+	# Add Docker repository if not already present
+	if ! apt-cache policy docker-compose-plugin >/dev/null 2>&1; then
+		log "==> Setting up Docker APT repository..."
+		sudo apt-get update
+		sudo apt-get install -y ca-certificates curl
+		sudo install -m 0755 -d /etc/apt/keyrings
+		curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+		sudo chmod a+r /etc/apt/keyrings/docker.asc
+		echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$UBUNTU_CODENAME") stable" | \
+			sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+		sudo apt-get update
+	fi
+
 	if command -v apt-get >/dev/null 2>&1; then
-		sudo apt-get update -y
 		sudo apt-get install -y docker-compose-plugin
 	elif command -v dnf >/dev/null 2>&1; then
 		sudo dnf install -y docker-compose-plugin
@@ -261,24 +271,33 @@ install_docker_compose() {
 			install_compose_linux_rootless
 			setup_rootless_env
 		else
-			install_compose_linux_root
-			if check_docker_cli; then
-				if is_rootless_docker; then
-					log "Rootless Docker detected."
-					setup_rootless_env
-				else
-					# POSIX-compliant read prompt
-					log "Are you using rootless Docker and need environment variables set? (y/N): "
-					IFS= read -r resp || resp="N"
-					case "$resp" in
-					[yY]*)
+			log "Do you want to install Docker Compose in rootless mode instead of root-based? (y/N): "
+			IFS= read -r resp || resp="N"
+			case "$resp" in
+			[yY]*)
+				install_compose_linux_rootless
+				setup_rootless_env
+				;;
+			*)
+				install_compose_linux_root
+				if check_docker_cli; then
+					if is_rootless_docker; then
+						log "Rootless Docker detected."
 						setup_rootless_env
-						;;
-					*)
-						;;
-					esac
+					else
+						log "Are you using rootless Docker and need environment variables set? (y/N): "
+						IFS= read -r resp || resp="N"
+						case "$resp" in
+						[yY]*)
+							setup_rootless_env
+							;;
+						*)
+							;;
+						esac
+					fi
 				fi
-			fi
+				;;
+			esac
 		fi
 		;;
 	*)
