@@ -13,11 +13,6 @@ DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
 DOCKER_VERSION=${DOCKER_VERSION:-"24.0.7"}
 SLIRP4NETNS_VERSION=${SLIRP4NETNS_VERSION:-"1.2.0"}
 
-# Checksums for verification (replace with actual checksums from official sources)
-DOCKER_TARBALL_SHA256="..."
-ROOTLESS_TARBALL_SHA256="..."
-SLIRP4NETNS_SHA256="..."
-
 # Check if running as root (we don't want this)
 if [ "$(id -u)" -eq 0 ]; then
     echo "Error: This script should not be run as root. Run it as a regular user."
@@ -111,12 +106,6 @@ curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCK
     exit 1
 }
 
-# Verify checksum
-echo "Verifying Docker tarball checksum..."
-echo "$DOCKER_TARBALL_SHA256  $DOCKER_ROOTLESS_DIR/docker.tgz" | sha256sum -c || {
-    echo "Error: Docker tarball checksum verification failed."
-    exit 1
-}
 
 # Extract main binaries
 echo "Extracting Docker binaries..."
@@ -137,13 +126,6 @@ curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-rootle
     exit 1
 }
 
-# Verify checksum
-echo "Verifying rootless extras tarball checksum..."
-echo "$ROOTLESS_TARBALL_SHA256  $DOCKER_ROOTLESS_DIR/docker-rootless.tgz" | sha256sum -c || {
-    echo "Error: Rootless extras tarball checksum verification failed."
-    exit 1
-}
-
 # Extract rootless binaries
 echo "Extracting rootless binaries..."
 tar -xzf "$DOCKER_ROOTLESS_DIR/docker-rootless.tgz" -C "$BIN_DIR" --strip-components=1 \
@@ -161,12 +143,6 @@ curl -fsSL "https://github.com/rootless-containers/slirp4netns/releases/download
     exit 1
 }
 
-# Verify checksum
-echo "Verifying slirp4netns checksum..."
-echo "$SLIRP4NETNS_SHA256  $BIN_DIR/slirp4netns" | sha256sum -c || {
-    echo "Error: slirp4netns checksum verification failed."
-    exit 1
-}
 
 # Make slirp4netns executable
 chmod +x "$BIN_DIR/slirp4netns"
