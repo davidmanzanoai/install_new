@@ -11,7 +11,7 @@ set -e
 USER_HOME="$HOME"
 BIN_DIR="$USER_HOME/bin"
 
-# Verbose output function (always verbose, no quiet option)
+# Verbose output function
 log() {
 	printf '%s\n' "$*"
 }
@@ -51,20 +51,19 @@ esac
 
 # Fetch latest Docker Compose version from GitHub API
 get_latest_compose_version() {
-	log "Fetching latest Docker Compose version..."
+	log "Fetching latest Docker Compose version..." >&2
 	if ! command -v curl >/dev/null 2>&1; then
-		log "Error: curl is required to fetch the latest version."
-		log "Install curl and rerun the script."
+		log "Error: curl is required to fetch the latest version." >&2
+		log "Install curl and rerun the script." >&2
 		exit 1
 	fi
-	# Use GitHub API to get the latest release tag
-	latest_version=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" | grep '"tag_name":' | sed 's/.*"tag_name": "\(.*\)",/\1/')
+	latest_version=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" | grep '"tag_name":' | sed 's/.*"tag_name": "\(.*\)",/\1/' 2>/dev/null)
 	if [ -z "$latest_version" ]; then
-		log "Error: Failed to fetch latest Docker Compose version."
-		log "Check network connectivity or GitHub API availability."
+		log "Error: Failed to fetch latest Docker Compose version." >&2
+		log "Check network connectivity or GitHub API availability." >&2
 		exit 1
 	fi
-	log "Latest version detected: $latest_version"
+	log "Latest version detected: $latest_version" >&2
 	printf '%s' "$latest_version"
 }
 
@@ -226,6 +225,7 @@ install_compose_linux_rootless() {
 	log "Downloading Docker Compose ${compose_version} for ${COMPOSE_ARCH}..."
 	if ! curl -fsSL "$compose_url" -o "$compose_binary"; then
 		log "Error: Failed to download Docker Compose from $compose_url"
+		log "Check network connectivity, architecture ($COMPOSE_ARCH), or GitHub availability."
 		exit 1
 	fi
 
@@ -321,5 +321,5 @@ install_docker_compose() {
 	esac
 }
 
-# Run the main function (no parameters accepted)
+# Run the main function
 install_docker_compose
