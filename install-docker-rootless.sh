@@ -169,7 +169,7 @@ if ! grep -q ".bashrc.docker" "$USER_HOME/.bashrc"; then
     echo ". $USER_HOME/.bashrc.docker" >> "$USER_HOME/.bashrc"
 fi
 # Source .bashrc to apply to current session
-source "$USER_HOME/.bashrc"
+. "$USER_HOME/.bashrc"
 
 # Set up systemd user service for Docker daemon
 echo "Setting up systemd user service for Docker daemon..."
