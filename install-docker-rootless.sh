@@ -83,12 +83,18 @@ fi
 # Stop any running Docker processes
 echo "Stopping any running Docker processes..."
 if [ -f "$DOCKER_ROOTLESS_DIR/docker.pid" ]; then
-    kill $(cat "$DOCKER_ROOTLESS_DIR/docker.pid") 2>/dev/null || true
-    sleep 1  # Give it a moment to shut down
+    pid=$(cat "$DOCKER_ROOTLESS_DIR/docker.pid")
+    if ps -p "$pid" > /dev/null 2>&1; then
+        echo "Killing existing Docker process (PID $pid)..."
+        kill -9 "$pid" 2>/dev/null || true
+        sleep 2  # Wait for process to terminate
+    fi
+    rm -f "$DOCKER_ROOTLESS_DIR/docker.pid"
 fi
 pkill -u "$USER_NAME" -f "dockerd-rootless.sh" 2>/dev/null || true
 pkill -u "$USER_NAME" -f "dockerd" 2>/dev/null || true
 pkill -u "$USER_NAME" -f "containerd" 2>/dev/null || true
+sleep 2  # Ensure all processes are stopped
 
 # Clean up previous attempts
 rm -rf "$DOCKER_ROOTLESS_DIR" "$BIN_DIR/docker"* "$USER_HOME/.local/share/docker" "$USER_HOME/.config/systemd/user/docker.service" "$BIN_DIR/docker-rootless-extras" "$BIN_DIR/slirp4netns"
