@@ -28,33 +28,19 @@ log() {
 }
 
 check_docker_installed() {
-  if type docker >/dev/null 2>&1; then
-    log "Docker CLI is already installed."
-    return 0
-  else
-    log "Docker CLI not found."
-    return 1
-  fi
+  type docker >/dev/null 2>&1 && return 0
+  return 1
 }
 
 check_docker_running() {
-  if docker info >/dev/null 2>&1; then
-    log "Docker daemon is running."
-    return 0
-  else
-    log "Docker daemon is NOT running."
-    return 1
-  fi
+  docker info >/dev/null 2>&1 && return 0
+  log "Docker daemon is NOT running."
+  return 1
 }
 
 check_compose_installed() {
-  if docker compose version >/dev/null 2>&1 || docker-compose version >/dev/null 2>&1; then
-    log "Docker Compose is already installed."
-    return 0
-  else
-    log "Docker Compose not found."
-    return 1
-  fi
+  docker compose version >/dev/null 2>&1 || docker-compose version >/dev/null 2>&1 && return 0
+  return 1
 }
 
 ensure_docker_running_linux() {
@@ -83,7 +69,6 @@ detect_os_and_arch() {
   x86_64) COMPOSE_ARCH="x86_64" ;;
   aarch64) COMPOSE_ARCH="aarch64" ;;
   armv7l) COMPOSE_ARCH="armv7" ;;
-  arm64) COMPOSE_ARCH="arm64" ;;
   *)
     log "Unsupported architecture: $ARCH"
     log "Supported: x86_64, aarch64, armv7l"
@@ -116,30 +101,32 @@ install_docker_macos() {
   log "==> Installing Docker and Compose on macOS via Docker Desktop..."
 
   if check_docker_installed && check_compose_installed; then
-    log "Docker and Docker Compose are already installed."
-  else
-    if command -v brew >/dev/null 2>&1; then
-      log "Installing Docker Desktop via Homebrew (includes Compose v2)..."
-      brew install --cask docker
-    else
-      log "Homebrew not found. Installing Docker Desktop manually via DMG..."
-      if [ "$ARCH" = "arm64" ]; then
-        DMG_URL="https://desktop.docker.com/mac/main/arm64/Docker.dmg"
-      else
-        DMG_URL="https://desktop.docker.com/mac/main/amd64/Docker.dmg"
-      fi
-
-      log "Downloading Docker Desktop DMG from: $DMG_URL"
-      curl -L -o /tmp/Docker.dmg "$DMG_URL"
-      log "Mounting DMG..."
-      hdiutil attach /tmp/Docker.dmg -mountpoint /Volumes/Docker -nobrowse
-      log "Copying Docker.app to /Applications (requires admin privileges)..."
-      sudo cp -R "/Volumes/Docker/Docker.app" /Applications/
-      log "Unmounting DMG..."
-      hdiutil detach /Volumes/Docker
-      log "Cleaning up DMG..."
-      rm -f /tmp/Docker.dmg
+    if check_docker_running; then
+      return 0
     fi
+  fi
+
+  if command -v brew >/dev/null 2>&1; then
+    log "Installing Docker Desktop via Homebrew (includes Compose v2)..."
+    brew install --cask docker
+  else
+    log "Homebrew not found. Installing Docker Desktop manually via DMG..."
+    if [ "$ARCH" = "arm64" ]; then
+      DMG_URL="https://desktop.docker.com/mac/main/arm64/Docker.dmg"
+    else
+      DMG_URL="https://desktop.docker.com/mac/main/amd64/Docker.dmg"
+    fi
+
+    log "Downloading Docker Desktop DMG from: $DMG_URL"
+    curl -L -o /tmp/Docker.dmg "$DMG_URL"
+    log "Mounting DMG..."
+    hdiutil attach /tmp/Docker.dmg -mountpoint /Volumes/Docker -nobrowse
+    log "Copying Docker.app to /Applications (requires admin privileges)..."
+    sudo cp -R "/Volumes/Docker/Docker.app" /Applications/
+    log "Unmounting DMG..."
+    hdiutil detach /Volumes/Docker
+    log "Cleaning up DMG..."
+    rm -f /tmp/Docker.dmg
   fi
 
   log "Starting Docker Desktop..."
@@ -155,14 +142,8 @@ install_docker_macos() {
 install_docker_linux_root() {
   log "==> Installing Docker and Compose (root-based) on Linux..."
 
-  if check_docker_installed && check_compose_installed; then
-    log "Docker and Docker Compose are already installed."
-    if check_docker_running; then
-      return 0
-    else
-      ensure_docker_running_linux
-      return 0
-    fi
+  if check_docker_installed && check_compose_installed && check_docker_running; then
+    return 0
   fi
 
   sudo apt-get update -y
@@ -224,7 +205,6 @@ install_docker_linux_rootless() {
   fi
 
   if check_docker_installed && check_compose_installed; then
-    log "Docker and Compose already installed in rootless mode."
     systemctl --user status docker-rootless >/dev/null 2>&1 || systemctl --user start docker-rootless
     return 0
   fi
@@ -326,7 +306,7 @@ install_docker_and_compose() {
     ;;
   linux)
     if check_docker_installed && check_compose_installed && check_docker_running; then
-      log "Docker and Compose are already installed and running."
+      log "Docker and Compose are already set up."
     else
       log "Do you want to install Docker and Compose in rootless mode (y) or root-based mode (n)? (y/N): "
       read -r resp
@@ -380,12 +360,6 @@ main() {
   LUMIGATOR_REPO_TAG="refs/tags/v"
   LUMIGATOR_VERSION="0.1.0-alpha"
   LUMIGATOR_URL="http://localhost:80"
-
-
-
-  echo "*****************************************************************************************"
-  echo "*************************** STARTING LUMIGATOR BY MOZILLA.AI ****************************"
-  echo "*****************************************************************************************"
 
   while [ "$#" -gt 0 ]; do
     case $1 in
