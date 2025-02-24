@@ -69,6 +69,7 @@ detect_os_and_arch() {
   x86_64) COMPOSE_ARCH="x86_64" ;;
   aarch64) COMPOSE_ARCH="aarch64" ;;
   armv7l) COMPOSE_ARCH="armv7" ;;
+  arm64) COMPOSE_ARCH="arm64" ;;
   *)
     log "Unsupported architecture: $ARCH"
     log "Supported: x86_64, aarch64, armv7l"
@@ -165,13 +166,13 @@ install_docker_linux_rootless() {
   BIN_DIR="$USER_HOME/bin"
   XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
   DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
-  DOCKER_VERSION="24.0.7"  # Can be updated or fetched dynamically if needed
+  DOCKER_VERSION=$(get_latest_docker_version)
   SLIRP4NETNS_VERSION="1.2.0"
   DOCKER_ROOTLESS_DIR="$USER_HOME/.docker-rootless"
   COMPOSE_VERSION=$(get_latest_compose_version)
   COMPOSE_URL="https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-${COMPOSE_ARCH}"
 
-  log "==> Installing Docker and Compose in rootless mode on Linux..."
+  log "==> Installing Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION in rootless mode on Linux..."
 
   if [ "$(id -u)" -eq 0 ]; then
     log "Error: This should not run as root for rootless mode."
@@ -226,15 +227,15 @@ install_docker_linux_rootless() {
   mkdir -p "$DOCKER_ROOTLESS_DIR" "$BIN_DIR" "$USER_HOME/.local/share/docker"
 
   log "Downloading Docker $DOCKER_VERSION..."
-  curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz" -o "$DOCKER_ROOTLESS_DIR/docker.tgz" || exit 1
+  curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz" -o "$DOCKER_ROOTLESS_DIR/docker.tgz" || { log "Error: Failed to download Docker"; exit 1; }
   tar -xzf "$DOCKER_ROOTLESS_DIR/docker.tgz" -C "$BIN_DIR" --strip-components=1 docker/docker docker/dockerd docker/containerd docker/runc docker/containerd-shim-runc-v2 --overwrite || exit 1
 
-  log "Downloading rootless extras..."
-  curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-rootless-extras-${DOCKER_VERSION}.tgz" -o "$DOCKER_ROOTLESS_DIR/docker-rootless.tgz" || exit 1
+  log "Downloading rootless extras for Docker $DOCKER_VERSION..."
+  curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-rootless-extras-${DOCKER_VERSION}.tgz" -o "$DOCKER_ROOTLESS_DIR/docker-rootless.tgz" || { log "Error: Failed to download rootless extras"; exit 1; }
   tar -xzf "$DOCKER_ROOTLESS_DIR/docker-rootless.tgz" -C "$BIN_DIR" --strip-components=1 docker-rootless-extras/dockerd-rootless.sh docker-rootless-extras/rootlesskit docker-rootless-extras/rootlesskit-docker-proxy --overwrite || exit 1
 
   log "Downloading slirp4netns $SLIRP4NETNS_VERSION..."
-  curl -fsSL "https://github.com/rootless-containers/slirp4netns/releases/download/v${SLIRP4NETNS_VERSION}/slirp4netns-x86_64" -o "$BIN_DIR/slirp4netns" || exit 1
+  curl -fsSL "https://github.com/rootless-containers/slirp4netns/releases/download/v${SLIRP4NETNS_VERSION}/slirp4netns-x86_64" -o "$BIN_DIR/slirp4netns" || { log "Error: Failed to download slirp4netns"; exit 1; }
 
   log "Downloading Docker Compose $COMPOSE_VERSION..."
   curl -fsSL "$COMPOSE_URL" -o "$BIN_DIR/docker-compose" || { log "Error: Failed to download Compose"; exit 1; }
@@ -270,28 +271,31 @@ EOF
   systemctl --user daemon-reload
   systemctl --user enable --now docker-rootless.service
 
-  log "Verifying Docker and Compose startup..."
+  log "Verifying Docker and Compose v2 startup..."
   sleep 10
   attempts=3
   i=1
   while [ $i -le $attempts ]; do
-    if "$BIN_DIR/docker" version >/dev/null 2>&1 && "$BIN_DIR/docker-compose" --version >/dev/null 2>&1; then
-      log "Docker and Compose verified on attempt $i"
+    if "$BIN_DIR/docker-compose" --version >/dev/null 2>&1; then
+      log "Docker Compose v2 verified on attempt $i (version: $($BIN_DIR/docker-compose --version))"
       break
     fi
     if [ $i -eq $attempts ]; then
-      log "Error: Failed to start after $attempts attempts. Check $DOCKER_ROOTLESS_DIR/dockerd.log"
+      log "Error: Failed to verify Compose v2 after $attempts attempts. Check $DOCKER_ROOTLESS_DIR/dockerd.log"
+      cat "$DOCKER_ROOTLESS_DIR/dockerd.log" >&2
       exit 1
     fi
     log "Attempt $i failed, retrying..."
     sleep 5
     i=$((i + 1))
   done
-  log "Docker and Compose rootless installed successfully!"
+  log "Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION rootless installed successfully!"
 }
 
+# ... [rest of the helper functions unchanged: check_docker_installed, check_docker_running, etc.] ...
+
 install_docker_and_compose() {
-  log "This script will install Docker and Docker Compose, then set up Lumigator."
+  log "This script will install the latest Docker and Docker Compose, then set up Lumigator."
   read -p "Proceed? (yes/no): " user_response
   if [ "$user_response" != "yes" ]; then
     log "Aborting installation."
@@ -382,7 +386,13 @@ main() {
 
   cd "$LUMIGATOR_TARGET_DIR" || exit 1
   if [ -f "Makefile" ]; then
-    make start-lumigator-build || { log "Failed to start Lumigator."; exit 1; }
+    if [ "$OS_TYPE" = "linux" ] && [ -n "$DOCKER_HOST" ] && echo "$DOCKER_HOST" | grep -q "^unix:///run/user/"; then
+      # Rootless mode: Use docker-compose binary with v2 syntax
+      RAY_ARCH_SUFFIX= COMPUTE_TYPE=-cpu "$BIN_DIR/docker-compose" --profile local -f docker-compose.yaml up -d --build || { log "Failed to start Lumigator."; exit 1; }
+    else
+      # Root mode or macOS: Use docker compose
+      RAY_ARCH_SUFFIX= COMPUTE_TYPE=-cpu docker compose --profile local -f docker-compose.yaml up -d --build || { log "Failed to start Lumigator."; exit 1; }
+    fi
   else
     log "Makefile not found in $LUMIGATOR_TARGET_DIR"
     exit 1
