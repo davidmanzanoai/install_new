@@ -22,16 +22,18 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 # Function to install dependencies
-install_prereqs() {
-    echo "🔍 Checking dependencies..."
-    for cmd in curl tar newuidmap newgidmap; do
-        if ! command -v "$cmd" &>/dev/null; then
-            echo "❌ Error: Missing $cmd. Install it with:"
-            echo "   sudo apt install -y uidmap curl tar"
-            exit 1
-        fi
-    done
+check_prereq() {
+    local cmd=$1
+    local pkg=$2
+    if ! type "$cmd" >/dev/null 2>&1; then
+        echo "❌ Error: Missing $cmd. Install it with:"
+        echo "   sudo apt install -y $pkg"
+        exit 1
+    else
+        echo "✅ $cmd is installed."
+    fi
 }
+
 
 # Ensure user namespaces and subuid/subgid are configured
 check_system_setup() {
