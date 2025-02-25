@@ -139,7 +139,7 @@ restart_lumigator() {
 }
 
 ### **📌 Run All Fixes in Order**
-install_prereqs
+install_prereq
 check_system_setup
 cleanup_old_install
 install_docker_rootless
