@@ -218,26 +218,31 @@ sudo systemctl start docker
 
 
 
-configure_docker_host() {
-  echo "Configuring DOCKER_HOST for rootless mode..."
-
-  # Define the correct Docker rootless socket
-  DOCKER_HOST_SETTING="export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock"
-
-  # Add to .bashrc if not already present
-  if ! grep -q "DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock" "$HOME/.bashrc"; then
-    echo "$DOCKER_HOST_SETTING" >> "$HOME/.bashrc"
+detect_docker_mode() {
+  if systemctl is-active --quiet docker; then
+    echo "root"
+  elif systemctl --user is-active --quiet docker-rootless; then
+    echo "rootless"
+  else
+    echo "unknown"
   fi
-
-  # Add to .zshrc (if user is using zsh)
-  if [ -f "$HOME/.zshrc" ] && ! grep -q "DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock" "$HOME/.zshrc"; then
-    echo "$DOCKER_HOST_SETTING" >> "$HOME/.zshrc"
-  fi
-
-  # Apply changes to the current session
-  export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock"
-  echo "DOCKER_HOST has been set to: $DOCKER_HOST"
 }
+
+configure_docker_host() {
+  DOCKER_MODE=$(detect_docker_mode)
+
+  if [ "$DOCKER_MODE" = "rootless" ]; then
+    echo "Configuring DOCKER_HOST for rootless mode..."
+    export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
+    echo 'export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock' >> ~/.bashrc
+    echo "DOCKER_HOST has been set to: $DOCKER_HOST"
+  elif [ "$DOCKER_MODE" = "root" ]; then
+    echo "Using system-wide Docker (root installation). No DOCKER_HOST override needed."
+  else
+    echo "Warning: Could not determine Docker installation mode."
+  fi
+}
+
 
 
 install_docker_linux_rootless() {
