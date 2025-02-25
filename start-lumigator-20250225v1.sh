@@ -237,11 +237,13 @@ configure_docker_host() {
     echo "DOCKER_HOST has been set to: $DOCKER_HOST"
   elif [ "$DOCKER_MODE" = "root" ]; then
     echo "Using system-wide Docker (root installation). No DOCKER_HOST override needed."
-    unset DOCKER_HOST  # Prevent incorrect configuration
+    unset DOCKER_HOST  # Remove any existing DOCKER_HOST setting
+    sed -i '/DOCKER_HOST=/d' ~/.bashrc  # Ensure it's not set permanently
   else
     echo "Warning: Could not determine Docker installation mode."
   fi
 }
+
 
 
 
