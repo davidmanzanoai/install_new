@@ -370,13 +370,21 @@ Environment="DOCKER_HOST=unix://$DOCKER_SOCK"
 [Install]
 WantedBy=default.target
 EOF
-
 # Ensure `iptables=false` is NOT present in the systemd service
 sed -i 's/--iptables=false//g' "$USER_HOME/.config/systemd/user/docker-rootless.service"
 
 # Reload systemd configuration and restart the service
 systemctl --user daemon-reexec
 systemctl --user restart docker-rootless.service
+
+# Verify Docker installation with a test container
+log "Verifying Docker installation by running 'hello-world' container..."
+if docker run --rm hello-world; then
+    log "Docker is working correctly!"
+else
+    log "Error: Docker test failed! Check logs with 'journalctl --user -u docker-rootless.service --no-pager --lines=50'"
+    exit 1
+fi
 
 
   systemctl --user daemon-reload
