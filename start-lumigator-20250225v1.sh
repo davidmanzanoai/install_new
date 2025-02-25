@@ -233,16 +233,19 @@ configure_docker_host() {
   if [ "$DOCKER_MODE" = "rootless" ]; then
     echo "Configuring DOCKER_HOST for rootless mode..."
     export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
-    echo 'export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock' >> ~/.bashrc
+    if ! grep -q "DOCKER_HOST=unix://" ~/.bashrc; then
+      echo 'export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock' >> ~/.bashrc
+    fi
     echo "DOCKER_HOST has been set to: $DOCKER_HOST"
   elif [ "$DOCKER_MODE" = "root" ]; then
     echo "Using system-wide Docker (root installation). No DOCKER_HOST override needed."
-    unset DOCKER_HOST  # Remove any existing DOCKER_HOST setting
-    sed -i '/DOCKER_HOST=/d' ~/.bashrc  # Ensure it's not set permanently
+    unset DOCKER_HOST  # Ensure it's not set
+    sed -i '/DOCKER_HOST=/d' ~/.bashrc  # Remove from bashrc if it was added
   else
     echo "Warning: Could not determine Docker installation mode."
   fi
 }
+
 
 
 
@@ -422,22 +425,20 @@ install_docker_and_compose() {
         ;;
       *)
         install_docker_linux_root
-        # Ensure the rootless service is configured
-        configure_docker_host
         ;;
       esac
     fi
-    ;;
+    # Ensure DOCKER_HOST is properly set after installation
+    configure_docker_host
+  ;;
   *)
     log "Unsupported OS: $OS_TYPE"
     exit 1
     ;;
   esac
   log "Docker and Compose installation complete."
-
-
-
 }
+
 
 install_project() {
   LUMIGATOR_TARGET_DIR="$LUMIGATOR_ROOT_DIR/$LUMIGATOR_FOLDER_NAME"
@@ -500,12 +501,16 @@ main() {
 
   cd "$LUMIGATOR_TARGET_DIR" || exit 1
   if [ -f "Makefile" ]; then
-    if [ "$OS_TYPE" = "linux" ] && [ -n "$DOCKER_HOST" ] && echo "$DOCKER_HOST" | grep -q "^unix:///run/user/"; then
-      # Rootless mode: Ensure DOCKER_HOST is set for make
-      DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock" make start-lumigator || { log "Failed to start Lumigator."; exit 1; }
-    else
-      make start-lumigator || { log "Failed to start Lumigator."; exit 1; }
+    DOCKER_MODE=$(detect_docker_mode)
+
+    if [ "$DOCKER_MODE" = "rootless" ]; then
+     export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
     fi
+  else
+   log "Starting Lumigator..."
+    make start-lumigator || { log "Failed to start Lumigator."; exit 1; }
+  fi
+
   else
     log "Makefile not found in $LUMIGATOR_TARGET_DIR"
     exit 1
