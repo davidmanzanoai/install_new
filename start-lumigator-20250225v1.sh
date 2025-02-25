@@ -170,7 +170,16 @@ detect_distro() {
 
 
 install_docker_linux_root() {
-  log "==> Installing Docker and Compose (root-based) on Linux..."
+
+  DISTRO=$(detect_distro)
+  log "==> Installing Docker and Compose (root-based) on $DISTRO..."
+
+if [[ "$DISTRO" == "unsupported" ]]; then
+  echo "Error: Unsupported Linux distribution."
+  exit 1
+fi
+
+log "Using Docker repository for $DISTRO..."
 
   if check_docker_installed && check_compose_installed && check_docker_running; then
     return 0
@@ -178,14 +187,7 @@ install_docker_linux_root() {
 
   sudo apt-get update -y
   sudo apt-get install -y ca-certificates curl gnupg lsb-release
-DISTRO=$(detect_distro)
 
-if [[ "$DISTRO" == "unsupported" ]]; then
-  echo "Error: Unsupported Linux distribution."
-  exit 1
-fi
-
-echo "Using Docker repository for $DISTRO..."
 
 # Ensure the keyring directory exists
 sudo mkdir -p /etc/apt/keyrings
