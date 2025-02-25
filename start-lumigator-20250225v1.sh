@@ -156,6 +156,19 @@ install_docker_macos() {
   log "Docker Desktop (with Compose) is running!"
 }
 
+detect_distro() {
+  source /etc/os-release
+  if [[ "$ID" == "debian" ]]; then
+    echo "debian"
+  elif [[ "$ID" == "ubuntu" ]]; then
+    echo "ubuntu"
+  else
+    echo "unsupported"
+  fi
+}
+
+
+
 install_docker_linux_root() {
   log "==> Installing Docker and Compose (root-based) on Linux..."
 
@@ -165,14 +178,34 @@ install_docker_linux_root() {
 
   sudo apt-get update -y
   sudo apt-get install -y ca-certificates curl gnupg lsb-release
-  sudo mkdir -p /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-  sudo apt-get update -y
-  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+DISTRO=$(detect_distro)
 
-  sudo systemctl enable docker
-  sudo systemctl start docker
+if [[ "$DISTRO" == "unsupported" ]]; then
+  echo "Error: Unsupported Linux distribution."
+  exit 1
+fi
+
+echo "Using Docker repository for $DISTRO..."
+
+# Ensure the keyring directory exists
+sudo mkdir -p /etc/apt/keyrings
+
+# Download and store the correct GPG key
+curl -fsSL "https://download.docker.com/linux/$DISTRO/gpg" | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Add the correct Docker repository
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/$DISTRO $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update package lists
+sudo apt-get update -y
+
+# Install Docker
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Enable and start Docker service
+sudo systemctl enable docker
+sudo systemctl start docker
   sudo usermod -aG docker "$USER"
   log "Docker and Compose installed. Log out and back in for group changes to take effect."
 }
