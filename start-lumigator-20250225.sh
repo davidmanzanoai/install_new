@@ -79,6 +79,22 @@ detect_os_and_arch() {
   log "Detected OS: $OS_TYPE, Architecture: $ARCH"
 }
 
+get_latest_docker_version() {
+  log "Fetching latest Docker version..." >&2
+  if ! command -v curl >/dev/null 2>&1; then
+    log "Error: curl is required to fetch the latest version." >&2
+    exit 1
+  fi
+  latest_version=$(curl -s "https://download.docker.com/linux/static/stable/x86_64/" | grep -o 'docker-[0-9]\+\.[0-9]\+\.[0-9]\+\.tgz' | sed 's/docker-\(.*\)\.tgz/\1/' | sort -V | tail -n 1)
+  if [ -z "$latest_version" ]; then
+    log "Error: Failed to fetch latest Docker version." >&2
+    log "Check network connectivity or Docker download page availability." >&2
+    exit 1
+  fi
+  log "Latest Docker version detected: $latest_version" >&2
+  printf '%s' "$latest_version"
+}
+
 get_latest_compose_version() {
   log "Fetching latest Docker Compose version..." >&2
   if ! command -v curl >/dev/null 2>&1; then
