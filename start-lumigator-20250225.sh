@@ -393,7 +393,7 @@ install_docker_and_compose() {
   log "Docker and Compose installation complete."
 
   # Ensure the rootless service is configured
-  setup_rootless_docker_service
+  #setup_rootless_docker_service
 
 }
 
