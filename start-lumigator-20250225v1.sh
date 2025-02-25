@@ -157,7 +157,7 @@ install_docker_macos() {
 }
 
 detect_distro() {
-  source /etc/os-release
+  . /etc/os-release
   if [[ "$ID" == "debian" ]]; then
     echo "debian"
   elif [[ "$ID" == "ubuntu" ]]; then
