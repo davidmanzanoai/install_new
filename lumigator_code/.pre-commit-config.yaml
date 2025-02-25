@@ -1,0 +1,30 @@
+repos:
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        exclude: |
+          (?x)^(
+              notebooks/preprocess_thunderbird_samples.ipynb|
+              .+/tests/data/.+json
+          )$
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+      - id: check-merge-conflict
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+        exclude: docs/source/specs/openapi.json
+      - id: requirements-txt-fixer
+        exclude: requirements_lock.txt
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.9.6
+    hooks:
+      # Run the linter.
+      - id: ruff
+        args: [ --fix ]
+      # Run the formatter.
+      - id: ruff-format

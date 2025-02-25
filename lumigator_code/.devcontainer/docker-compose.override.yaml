@@ -1,0 +1,33 @@
+name: lumigator
+
+services:
+
+  ray:
+    volumes:
+      - /tmp/ray_pip_cache:/tmp/ray_pip_cache
+  backend:
+    build:
+      context: .
+      dockerfile: "Dockerfile"
+      target: "dev_image"
+    ports:
+      - "5678:5678"
+    develop:
+      watch:
+        - path: lumigator/backend/
+          target: /mzai/lumigator/backend
+          action: sync
+          ignore:
+            - .venv/
+        - path: lumigator/jobs/
+          target: /mzai/lumigator/jobs
+          action: sync
+          ignore:
+            - .venv/
+        - path: lumigator/schemas/
+          target: /mzai/lumigator/schemas
+          action: sync
+          ignore:
+            - .venv/
+        - path: lumigator/backend/pyproject.toml
+          action: rebuild

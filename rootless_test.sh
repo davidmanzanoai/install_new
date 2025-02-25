@@ -500,12 +500,8 @@ main() {
 
   cd "$LUMIGATOR_TARGET_DIR" || exit 1
   if [ -f "Makefile" ]; then
-    if [ "$OS_TYPE" = "linux" ] && [ -n "$DOCKER_HOST" ] && echo "$DOCKER_HOST" | grep -q "^unix:///run/user/"; then
-      # Rootless mode: Ensure DOCKER_HOST is set for make
-      DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock" make start-lumigator || { log "Failed to start Lumigator."; exit 1; }
-    else
       make start-lumigator || { log "Failed to start Lumigator."; exit 1; }
-    fi
+
   else
     log "Makefile not found in $LUMIGATOR_TARGET_DIR"
     exit 1
