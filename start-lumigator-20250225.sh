@@ -207,6 +207,28 @@ EOF
   echo "Docker Rootless service has been configured and restarted."
 }
 
+configure_docker_host() {
+  echo "Configuring DOCKER_HOST for rootless mode..."
+
+  # Define the correct Docker rootless socket
+  DOCKER_HOST_SETTING="export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock"
+
+  # Add to .bashrc if not already present
+  if ! grep -q "DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock" "$HOME/.bashrc"; then
+    echo "$DOCKER_HOST_SETTING" >> "$HOME/.bashrc"
+  fi
+
+  # Add to .zshrc (if user is using zsh)
+  if [ -f "$HOME/.zshrc" ] && ! grep -q "DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock" "$HOME/.zshrc"; then
+    echo "$DOCKER_HOST_SETTING" >> "$HOME/.zshrc"
+  fi
+
+  # Apply changes to the current session
+  export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock"
+  echo "DOCKER_HOST has been set to: $DOCKER_HOST"
+}
+
+
 install_docker_linux_rootless() {
   USER_HOME="$HOME"
   BIN_DIR="$USER_HOME/bin"
@@ -394,6 +416,8 @@ install_docker_and_compose() {
 
   # Ensure the rootless service is configured
   #setup_rootless_docker_service
+  configure_docker_host
+
 
 }
 
