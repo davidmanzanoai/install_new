@@ -183,7 +183,7 @@ install_docker_linux_rootless() {
   CLI_PLUGINS_DIR="$USER_HOME/.docker/cli-plugins"
   XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
   DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
-  DOCKER_VERSION=$(get_latest_docker_version)
+  DOCKER_VERSION="24.0.9"  # Fallback to known working version
   SLIRP4NETNS_VERSION="1.2.0"
   DOCKER_ROOTLESS_DIR="$USER_HOME/.docker-rootless"
   COMPOSE_VERSION=$(get_latest_compose_version)
@@ -265,7 +265,7 @@ install_docker_linux_rootless() {
       exit 1
     fi
   done
-  for bin in vpnkit dockerd-rootless-setuptool.sh; do
+  for bin in vpnkit dockerd-rootless-setuptool.sh rootlesskit-docker-proxy; do
     if [ -f "$BIN_DIR/$bin" ]; then
       chmod +x "$BIN_DIR/$bin"
       log "Optional binary $bin found and made executable"
@@ -289,7 +289,7 @@ EOF
 Description=Docker Rootless Daemon
 After=network.target
 [Service]
-ExecStart=/bin/bash -c "export PATH=$BIN_DIR:\$PATH; $BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --iptables=false --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --no-default-bridge --exec-opt native.cgroupdriver=cgroupfs"
+ExecStart=/bin/bash -c "export PATH=$BIN_DIR:\$PATH; $BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --iptables=false --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --exec-opt native.cgroupdriver=cgroupfs"
 Restart=always
 Environment="PATH=$BIN_DIR:$PATH"
 Environment="DOCKER_HOST=unix://$DOCKER_SOCK"
