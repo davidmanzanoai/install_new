@@ -363,13 +363,21 @@ EOF
 Description=Docker Rootless Daemon
 After=network.target
 [Service]
-ExecStart=/bin/bash -c "export PATH=$BIN_DIR:\$PATH; $BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --iptables=false --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --exec-opt native.cgroupdriver=cgroupfs"
+ExecStart=/bin/bash -c "export PATH=$BIN_DIR:\$PATH; $BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --exec-opt native.cgroupdriver=cgroupfs"
 Restart=always
 Environment="PATH=$BIN_DIR:$PATH"
 Environment="DOCKER_HOST=unix://$DOCKER_SOCK"
 [Install]
 WantedBy=default.target
 EOF
+
+# Ensure `iptables=false` is NOT present in the systemd service
+sed -i 's/--iptables=false//g' "$USER_HOME/.config/systemd/user/docker-rootless.service"
+
+# Reload systemd configuration and restart the service
+systemctl --user daemon-reexec
+systemctl --user restart docker-rootless.service
+
 
   systemctl --user daemon-reload
   systemctl --user enable docker-rootless.service
