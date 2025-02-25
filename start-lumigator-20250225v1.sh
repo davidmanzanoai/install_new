@@ -171,36 +171,38 @@ detect_distro() {
 
 install_docker_linux_root() {
 
-  DISTRO=$(detect_distro)
-  log "==> Installing Docker and Compose (root-based) on $DISTRO..."
+DISTRO=$(detect_distro)
 
 if [[ "$DISTRO" == "unsupported" ]]; then
   echo "Error: Unsupported Linux distribution."
   exit 1
 fi
-
-log "Using Docker repository for $DISTRO..."
-
-  if check_docker_installed && check_compose_installed && check_docker_running; then
-    return 0
-  fi
-
-  sudo apt-get update -y
-  sudo apt-get install -y ca-certificates curl gnupg lsb-release
-
+log "==> Installing Docker and Compose (root-based) on $DISTRO..."
 
 # Ensure the keyring directory exists
 sudo mkdir -p /etc/apt/keyrings
 
-# Download and store the correct GPG key
-curl -fsSL "https://download.docker.com/linux/$DISTRO/gpg" | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+# Download the GPG key, but first check if it already exists to avoid prompting for overwrite
+GPG_KEY="/etc/apt/keyrings/docker.gpg"
+if [ -f "$GPG_KEY" ]; then
+  echo "Docker GPG key already exists. Removing and re-downloading..."
+  sudo rm -f "$GPG_KEY"
+fi
+
+curl -fsSL "https://download.docker.com/linux/$DISTRO/gpg" | sudo gpg --dearmor -o "$GPG_KEY"
+
+# Ensure permissions are correct
+sudo chmod a+r "$GPG_KEY"
 
 # Add the correct Docker repository
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+echo "deb [arch=$(dpkg --print-architecture) signed-by=$GPG_KEY] \
 https://download.docker.com/linux/$DISTRO $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+
 
 # Update package lists
 sudo apt-get update -y
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
 
 # Install Docker
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
