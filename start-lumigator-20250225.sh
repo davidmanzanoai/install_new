@@ -199,7 +199,7 @@ install_docker_linux_rootless() {
   log "Prerequisites: uidmap, user namespaces, sub-UID/GID ranges must be set up."
   for cmd in curl tar newuidmap newgidmap; do
     if ! type "$cmd" >/dev/null 2>&1; then
-      log "Error: $cmd is required. Install with 'apt install' (needs admin)."
+      log "Error: $cmd is required. Install with 'apt install $cmd' (needs admin)."
       exit 1
     fi
   done
@@ -257,7 +257,6 @@ install_docker_linux_rootless() {
   log "Downloading Docker Compose $COMPOSE_VERSION as CLI plugin..."
   curl -fsSL "$COMPOSE_URL" -o "$CLI_PLUGINS_DIR/docker-compose" || { log "Error: Failed to download Compose"; exit 1; }
 
-  # Verify and make binaries executable
   for bin in docker dockerd containerd runc containerd-shim-runc-v2 dockerd-rootless.sh rootlesskit slirp4netns; do
     if [ -f "$BIN_DIR/$bin" ]; then
       chmod +x "$BIN_DIR/$bin"
@@ -266,7 +265,6 @@ install_docker_linux_rootless() {
       exit 1
     fi
   done
-  # Optional binaries
   for bin in vpnkit dockerd-rootless-setuptool.sh; do
     if [ -f "$BIN_DIR/$bin" ]; then
       chmod +x "$BIN_DIR/$bin"
@@ -291,7 +289,7 @@ EOF
 Description=Docker Rootless Daemon
 After=network.target
 [Service]
-ExecStart=$BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --iptables=false --userland-proxy=true --exec-opt native.cgroupdriver=cgroupfs
+ExecStart=/bin/bash -c "export PATH=$BIN_DIR:\$PATH; $BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --iptables=false --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --no-default-bridge --exec-opt native.cgroupdriver=cgroupfs"
 Restart=always
 Environment="PATH=$BIN_DIR:$PATH"
 Environment="DOCKER_HOST=unix://$DOCKER_SOCK"
@@ -300,10 +298,11 @@ WantedBy=default.target
 EOF
 
   systemctl --user daemon-reload
-  systemctl --user enable --now docker-rootless.service
+  systemctl --user enable docker-rootless.service
+  systemctl --user start docker-rootless.service
 
   log "Verifying Docker and Compose v2 startup..."
-  sleep 10
+  sleep 20
   attempts=3
   i=1
   while [ $i -le $attempts ]; do
@@ -312,7 +311,10 @@ EOF
       break
     fi
     if [ $i -eq $attempts ]; then
-      log "Error: Failed to verify Compose v2 plugin after $attempts attempts. Check $DOCKER_ROOTLESS_DIR/dockerd.log"
+      log "Error: Failed to verify Compose v2 plugin after $attempts attempts."
+      log "Service status:"
+      systemctl --user status docker-rootless.service >&2
+      log "Docker log:"
       cat "$DOCKER_ROOTLESS_DIR/dockerd.log" >&2
       exit 1
     fi
