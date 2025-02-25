@@ -158,9 +158,9 @@ install_docker_macos() {
 
 detect_distro() {
   . /etc/os-release
-  if [[ "$ID" == "debian" ]]; then
+  if [ "$ID" == "debian" ]; then
     echo "debian"
-  elif [[ "$ID" == "ubuntu" ]]; then
+  elif [ "$ID" == "ubuntu" ]; then
     echo "ubuntu"
   else
     echo "unsupported"
@@ -173,7 +173,7 @@ install_docker_linux_root() {
 
 DISTRO=$(detect_distro)
 
-if [[ "$DISTRO" == "unsupported" ]]; then
+if [ "$DISTRO" == "unsupported" ]; then
   echo "Error: Unsupported Linux distribution."
   exit 1
 fi
