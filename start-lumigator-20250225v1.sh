@@ -469,7 +469,6 @@ main() {
   echo "*************************** STARTING LUMIGATOR BY MOZILLA.AI ****************************"
   echo "*****************************************************************************************"
 
-
   LUMIGATOR_ROOT_DIR="$PWD"
   OVERWRITE_LUMIGATOR=false
   LUMIGATOR_FOLDER_NAME="lumigator_code"
@@ -480,11 +479,11 @@ main() {
 
   while [ "$#" -gt 0 ]; do
     case $1 in
-    -d | --directory) LUMIGATOR_ROOT_DIR="$2"; shift ;;
-    -o | --overwrite) OVERWRITE_LUMIGATOR=true ;;
-    -m | --main) LUMIGATOR_REPO_TAG="refs/heads/"; LUMIGATOR_VERSION="main" ;;
-    -h | --help) show_help ;;
-    *) log "Unknown parameter: $1"; show_help ;;
+      -d | --directory) LUMIGATOR_ROOT_DIR="$2"; shift ;;
+      -o | --overwrite) OVERWRITE_LUMIGATOR=true ;;
+      -m | --main) LUMIGATOR_REPO_TAG="refs/heads/"; LUMIGATOR_VERSION="main" ;;
+      -h | --help) show_help ;;
+      *) log "Unknown parameter: $1"; show_help ;;
     esac
     shift
   done
@@ -504,12 +503,11 @@ main() {
     DOCKER_MODE=$(detect_docker_mode)
 
     if [ "$DOCKER_MODE" = "rootless" ]; then
-     export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
+      export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
     fi
-  else
-   log "Starting Lumigator..."
+
+    log "Starting Lumigator..."
     make start-lumigator || { log "Failed to start Lumigator."; exit 1; }
-  fi
 
   else
     log "Makefile not found in $LUMIGATOR_TARGET_DIR"
@@ -517,11 +515,13 @@ main() {
   fi
 
   log "Lumigator setup complete. Access at $LUMIGATOR_URL"
+  
   case "$OS_TYPE" in
-  linux) xdg-open "$LUMIGATOR_URL" ;;
-  macos) open "$LUMIGATOR_URL" ;;
-  *) log "Open $LUMIGATOR_URL in your browser." ;;
+    linux) xdg-open "$LUMIGATOR_URL" ;;
+    macos) open "$LUMIGATOR_URL" ;;
+    *) log "Open $LUMIGATOR_URL in your browser." ;;
   esac
+
   log "To stop, run 'make stop-lumigator' in $LUMIGATOR_TARGET_DIR"
 }
 
