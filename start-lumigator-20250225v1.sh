@@ -217,7 +217,6 @@ sudo systemctl start docker
 }
 
 
-
 detect_docker_mode() {
   if systemctl is-active --quiet docker; then
     echo "root"
@@ -238,10 +237,12 @@ configure_docker_host() {
     echo "DOCKER_HOST has been set to: $DOCKER_HOST"
   elif [ "$DOCKER_MODE" = "root" ]; then
     echo "Using system-wide Docker (root installation). No DOCKER_HOST override needed."
+    unset DOCKER_HOST  # Prevent incorrect configuration
   else
     echo "Warning: Could not determine Docker installation mode."
   fi
 }
+
 
 
 
