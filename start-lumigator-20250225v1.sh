@@ -396,6 +396,18 @@ EOF
     sleep 5
     i=$((i + 1))
   done
+
+# Ensure DOCKER_HOST is set correctly
+export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
+echo 'export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock' >> ~/.bashrc
+echo 'export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock' >> ~/.profile
+
+# Ensure PATH includes the correct Docker binary directory
+export PATH=$HOME/bin:$PATH
+echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
+echo 'export PATH=$HOME/bin:$PATH' >> ~/.profile
+
+
   log "Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION rootless installed successfully!"
 }
 
@@ -499,6 +511,8 @@ main() {
   install_project
 
   cd "$LUMIGATOR_TARGET_DIR" || exit 1
+
+  
   if [ -f "Makefile" ]; then
     DOCKER_MODE=$(detect_docker_mode)
 
