@@ -22,7 +22,7 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 # Function to install dependencies
-check_prereq() {
+install_prereqs() {
     local cmd=$1
     local pkg=$2
     if ! type "$cmd" >/dev/null 2>&1; then
@@ -139,7 +139,7 @@ restart_lumigator() {
 }
 
 ### **📌 Run All Fixes in Order**
-install_prereq
+install_prereqs
 check_system_setup
 cleanup_old_install
 install_docker_rootless
