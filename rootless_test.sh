@@ -419,6 +419,8 @@ install_docker_and_compose() {
       case "$resp" in
       [yY]*)
         install_docker_linux_rootless
+        configure_docker_host
+
         ;;
       *)
         install_docker_linux_root
