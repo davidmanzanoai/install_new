@@ -245,11 +245,11 @@ install_docker_linux_rootless() {
 
   log "Downloading Docker $DOCKER_VERSION..."
   curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz" -o "$DOCKER_ROOTLESS_DIR/docker.tgz" || { log "Error: Failed to download Docker"; exit 1; }
-  tar -xzf "$DOCKER_ROOTLESS_DIR/docker.tgz" -C "$BIN_DIR" --strip-components=1 docker/docker docker/dockerd docker/containerd docker/runc docker/containerd-shim-runc-v2 --overwrite || exit 1
+  tar -xzf "$DOCKER_ROOTLESS_DIR/docker.tgz" -C "$BIN_DIR" --strip-components=1 || { log "Error: Failed to extract Docker binaries"; exit 1; }
 
   log "Downloading rootless extras for Docker $DOCKER_VERSION..."
   curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-rootless-extras-${DOCKER_VERSION}.tgz" -o "$DOCKER_ROOTLESS_DIR/docker-rootless.tgz" || { log "Error: Failed to download rootless extras"; exit 1; }
-  tar -xzf "$DOCKER_ROOTLESS_DIR/docker-rootless.tgz" -C "$BIN_DIR" --strip-components=1 docker-rootless-extras/dockerd-rootless.sh docker-rootless-extras/rootlesskit docker-rootless-extras/rootlesskit-docker-proxy --overwrite || exit 1
+  tar -xzf "$DOCKER_ROOTLESS_DIR/docker-rootless.tgz" -C "$BIN_DIR" --strip-components=1 || { log "Error: Failed to extract rootless extras"; exit 1; }
 
   log "Downloading slirp4netns $SLIRP4NETNS_VERSION..."
   curl -fsSL "https://github.com/rootless-containers/slirp4netns/releases/download/v${SLIRP4NETNS_VERSION}/slirp4netns-x86_64" -o "$BIN_DIR/slirp4netns" || { log "Error: Failed to download slirp4netns"; exit 1; }
@@ -257,9 +257,21 @@ install_docker_linux_rootless() {
   log "Downloading Docker Compose $COMPOSE_VERSION as CLI plugin..."
   curl -fsSL "$COMPOSE_URL" -o "$CLI_PLUGINS_DIR/docker-compose" || { log "Error: Failed to download Compose"; exit 1; }
 
-  for bin in docker dockerd containerd runc containerd-shim-runc-v2 dockerd-rootless.sh rootlesskit rootlesskit-docker-proxy slirp4netns; do
-    chmod +x "$BIN_DIR/$bin"
-    [ -f "$BIN_DIR/$bin" ] || { log "Error: $bin missing in $BIN_DIR"; exit 1; }
+  # Verify and make binaries executable
+  for bin in docker dockerd containerd runc containerd-shim-runc-v2 dockerd-rootless.sh rootlesskit slirp4netns; do
+    if [ -f "$BIN_DIR/$bin" ]; then
+      chmod +x "$BIN_DIR/$bin"
+    else
+      log "Error: Required binary $bin not found in $BIN_DIR"
+      exit 1
+    fi
+  done
+  # Optional binaries
+  for bin in vpnkit dockerd-rootless-setuptool.sh; do
+    if [ -f "$BIN_DIR/$bin" ]; then
+      chmod +x "$BIN_DIR/$bin"
+      log "Optional binary $bin found and made executable"
+    fi
   done
   chmod +x "$CLI_PLUGINS_DIR/docker-compose"
   [ -f "$CLI_PLUGINS_DIR/docker-compose" ] || { log "Error: docker-compose missing in $CLI_PLUGINS_DIR"; exit 1; }
