@@ -420,9 +420,14 @@ main() {
   install_docker_and_compose
   install_project
 
-cd "$LUMIGATOR_TARGET_DIR" || exit 1
+  cd "$LUMIGATOR_TARGET_DIR" || exit 1
   if [ -f "Makefile" ]; then
-    make start-lumigator-build || { log "Failed to start Lumigator."; exit 1; }
+    if [ "$OS_TYPE" = "linux" ] && [ -n "$DOCKER_HOST" ] && echo "$DOCKER_HOST" | grep -q "^unix:///run/user/"; then
+      # Rootless mode: Ensure DOCKER_HOST is set for make
+      DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock" make start-lumigator-build || { log "Failed to start Lumigator."; exit 1; }
+    else
+      make start-lumigator-build || { log "Failed to start Lumigator."; exit 1; }
+    fi
   else
     log "Makefile not found in $LUMIGATOR_TARGET_DIR"
     exit 1
