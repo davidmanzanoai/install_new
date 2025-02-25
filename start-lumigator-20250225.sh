@@ -177,6 +177,36 @@ install_docker_linux_root() {
   log "Docker and Compose installed. Log out and back in for group changes to take effect."
 }
 
+setup_rootless_docker_service() {
+  SYSTEMD_DIR="$HOME/.config/systemd/user"
+  SERVICE_FILE="$SYSTEMD_DIR/docker-rootless.service"
+  BIN_DIR="$HOME/bin"
+
+  mkdir -p "$SYSTEMD_DIR"
+
+  cat << EOF > "$SERVICE_FILE"
+[Unit]
+Description=Docker Rootless Daemon
+After=network.target
+
+[Service]
+ExecStart=$BIN_DIR/dockerd-rootless.sh --iptables=false
+Restart=always
+Environment="PATH=$BIN_DIR:\$PATH"
+Environment="DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock"
+
+[Install]
+WantedBy=default.target
+EOF
+
+  # Reload systemd, enable and start the service
+  systemctl --user daemon-reexec
+  systemctl --user enable docker-rootless.service
+  systemctl --user restart docker-rootless.service
+
+  echo "Docker Rootless service has been configured and restarted."
+}
+
 install_docker_linux_rootless() {
   USER_HOME="$HOME"
   BIN_DIR="$USER_HOME/bin"
@@ -361,6 +391,10 @@ install_docker_and_compose() {
     ;;
   esac
   log "Docker and Compose installation complete."
+
+  # Ensure the rootless service is configured
+  setup_rootless_docker_service
+
 }
 
 install_project() {
