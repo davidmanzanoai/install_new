@@ -158,9 +158,9 @@ install_docker_macos() {
 
 detect_distro() {
   . /etc/os-release
-  if [ "$ID" == "debian" ]; then
+  if "$ID" == "debian"; then
     echo "debian"
-  elif [ "$ID" == "ubuntu" ]; then
+  elif "$ID" == "ubuntu"; then
     echo "ubuntu"
   else
     echo "unsupported"
