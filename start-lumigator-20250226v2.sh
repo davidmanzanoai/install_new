@@ -210,7 +210,6 @@ install_docker_linux_rootless() {
 
   log "==> Installing Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION (rootless)..."
 
-  # **CHANGED**: Added prerequisite check statement
   log "Prerequisites: Ensure 'uidmap' package is installed (e.g., 'sudo apt install uidmap') for newuidmap/newgidmap."
   log "Also ensure user namespaces are enabled and sub-UID/GID ranges are set in /etc/subuid and /etc/subgid."
 
@@ -285,14 +284,13 @@ install_docker_linux_rootless() {
 
   log "Setting up systemd user service..."
   mkdir -p "$USER_HOME/.config/systemd/user"
-  # **CHANGED**: Simplified to use dockerd-rootless.sh, removed hardcoded paths and unnecessary publish flags
   cat << EOF > "$USER_HOME/.config/systemd/user/docker.service"
 [Unit]
 Description=Docker Rootless Daemon
 After=network.target
 
 [Service]
-ExecStart=$BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --bridge=none --iptables=false --exec-opt native.cgroupdriver=cgroupfs
+ExecStart=$BIN_DIR/rootlesskit --net=slirp4netns --mtu=65520 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto --disable-host-loopback --port-driver=builtin --publish=8080:80 --publish=9000:9000 --publish=9001:9001 --publish=6379:6379 --publish=8265:8265 --publish=8000:8000 --publish=10001:10001 --copy-up=/etc --copy-up=/run --propagation=rslave $BIN_DIR/dockerd --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --bridge=none --iptables=false --exec-opt native.cgroupdriver=cgroupfs
 Environment="PATH=$BIN_DIR:/usr/local/bin:/usr/bin:/bin"
 Environment="DOCKER_HOST=unix://$DOCKER_SOCK"
 Restart=always
@@ -306,7 +304,6 @@ EOF
   systemctl --user enable docker.service
   systemctl --user start docker.service
 
-  # **CHANGED**: Improved Docker startup check with timeout and diagnostics
   log "Waiting for Docker to start..."
   for i in {1..10}; do
     if docker info >/dev/null 2>&1; then
@@ -322,7 +319,6 @@ EOF
     exit 1
   fi
 
-  # **CHANGED**: Enhanced verification with output for user feedback
   log "Verifying Docker with hello-world container..."
   if "$BIN_DIR/docker" run --rm hello-world; then
     log "Docker test passed."
@@ -343,6 +339,7 @@ EOF
 
   log "Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION rootless installed successfully!"
 }
+
 
 install_docker_and_compose() {
   log "This script will install the latest Docker and Docker Compose, then set up Lumigator."
