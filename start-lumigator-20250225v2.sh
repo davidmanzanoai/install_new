@@ -336,6 +336,46 @@ EOF
   log "Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION rootless installed successfully!"
 }
 
+install_docker_and_compose() {
+  log "This script will install the latest Docker and Docker Compose, then set up Lumigator."
+  read -p "Proceed? (yes/no): " user_response
+  if [ "$user_response" != "yes" ]; then
+    log "Aborting installation."
+    exit 0
+  fi
+
+  detect_os_and_arch
+
+  case "$OS_TYPE" in
+  macos)
+    install_docker_macos
+    ;;
+  linux)
+    if check_docker_installed && check_compose_installed && check_docker_running; then
+      log "Docker and Compose are already set up."
+    else
+      log "Do you want to install Docker and Compose in rootless mode (y) or root-based mode (n)? (y/N): "
+      read -r resp
+      case "$resp" in
+      [yY]*)
+        install_docker_linux_rootless
+        ;;
+      *)
+        install_docker_linux_root
+        ;;
+      esac
+    fi
+    # Ensure DOCKER_HOST is properly set after installation
+    configure_docker_host
+  ;;
+  *)
+    log "Unsupported OS: $OS_TYPE"
+    exit 1
+    ;;
+  esac
+  log "Docker and Compose installation complete."
+}
+
 install_project() {
   LUMIGATOR_TARGET_DIR="$LUMIGATOR_ROOT_DIR/$LUMIGATOR_FOLDER_NAME"
   log "Installing Lumigator in $LUMIGATOR_TARGET_DIR"

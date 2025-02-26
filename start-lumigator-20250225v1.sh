@@ -515,7 +515,7 @@ main() {
     esac
     shift
   done
-
+  
   log "Starting Lumigator setup..."
 
   ####### Checking tools ######################
