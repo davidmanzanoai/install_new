@@ -212,20 +212,20 @@ install_docker_linux_rootless() {
   CLI_PLUGINS_DIR="$USER_HOME/.docker/cli-plugins"
   XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
   DOCKER_SOCK="$XDG_RUNTIME_DIR/docker.sock"
-  DOCKER_VERSION="24.0.9"  # Stable version for rootless mode
+  DOCKER_VERSION="20.10.24"
   SLIRP4NETNS_VERSION="1.2.0"
   DOCKER_ROOTLESS_DIR="$USER_HOME/.docker-rootless"
   COMPOSE_VERSION=$(get_latest_compose_version)
   COMPOSE_URL="https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-${COMPOSE_ARCH}"
 
-  log "==> Installing Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION (rootless) on Linux..."
+  log "==> Installing Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION (rootless)..."
 
   if [ "$(id -u)" -eq 0 ]; then
     log "Error: This should not run as root for rootless mode."
     exit 1
   fi
 
-  log "Checking prerequisites: uidmap, user namespaces, sub-UID/GID ranges..."
+  log "Checking prerequisites..."
   for cmd in curl tar newuidmap newgidmap; do
     if ! type "$cmd" >/dev/null 2>&1; then
       log "Error: $cmd is required. Install with 'sudo apt install uidmap' (needs admin)."
@@ -240,7 +240,7 @@ install_docker_linux_rootless() {
 
   USER_NAME=$(whoami)
   if ! grep -q "^$USER_NAME:" /etc/subuid || ! grep -q "^$USER_NAME:" /etc/subgid; then
-    log "Error: Sub-UID/GID ranges missing for $USER_NAME. Ask your admin to set up with 'usermod -v 10000-65536 -w 10000-65536 $USER_NAME'."
+    log "Error: Sub-UID/GID ranges missing for $USER_NAME."
     exit 1
   fi
 
@@ -251,23 +251,8 @@ install_docker_linux_rootless() {
     mkdir -p "$XDG_RUNTIME_DIR" || { log "Error: Cannot create $XDG_RUNTIME_DIR"; exit 1; }
   fi
 
-  if check_docker_installed && check_compose_installed && systemctl --user is-active --quiet docker; then
-    log "Rootless Docker and Compose are already installed and running."
-    return 0
-  fi
-
-  log "Warning: This will remove existing rootless Docker files."
-  read -p "Proceed? (y/N): " confirm
-  if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
-    log "Aborting."
-    exit 1
-  fi
-
-  if [ -f "$DOCKER_ROOTLESS_DIR/docker.pid" ]; then
-    pid=$(cat "$DOCKER_ROOTLESS_DIR/docker.pid")
-    kill -9 "$pid" 2>/dev/null || true
-    rm -f "$DOCKER_ROOTLESS_DIR/docker.pid"
-  fi
+  log "Cleaning up existing Docker files..."
+  systemctl --user stop docker.service 2>/dev/null || true
   rm -rf "$DOCKER_ROOTLESS_DIR" "$BIN_DIR/docker"* "$USER_HOME/.local/share/docker" "$USER_HOME/.config/systemd/user/docker.service" "$BIN_DIR/slirp4netns" "$CLI_PLUGINS_DIR/docker-compose"
 
   mkdir -p "$DOCKER_ROOTLESS_DIR" "$BIN_DIR" "$USER_HOME/.local/share/docker" "$CLI_PLUGINS_DIR"
@@ -284,7 +269,7 @@ install_docker_linux_rootless() {
   curl -fsSL "https://github.com/rootless-containers/slirp4netns/releases/download/v${SLIRP4NETNS_VERSION}/slirp4netns-x86_64" -o "$BIN_DIR/slirp4netns" || { log "Error: Failed to download slirp4netns"; exit 1; }
   chmod +x "$BIN_DIR/slirp4netns"
 
-  log "Downloading Docker Compose $COMPOSE_VERSION as CLI plugin..."
+  log "Downloading Docker Compose $COMPOSE_VERSION..."
   curl -fsSL "$COMPOSE_URL" -o "$CLI_PLUGINS_DIR/docker-compose" || { log "Error: Failed to download Compose"; exit 1; }
   chmod +x "$CLI_PLUGINS_DIR/docker-compose"
 
@@ -301,8 +286,6 @@ install_docker_linux_rootless() {
   echo "export PATH=$BIN_DIR:\$PATH" > "$USER_HOME/.bashrc.docker"
   echo "export DOCKER_HOST=unix://$DOCKER_SOCK" >> "$USER_HOME/.bashrc.docker"
   grep -q ".bashrc.docker" "$USER_HOME/.bashrc" || echo ". $USER_HOME/.bashrc.docker" >> "$USER_HOME/.bashrc"
-  echo "export PATH=$BIN_DIR:\$PATH" >> "$USER_HOME/.profile"
-  echo "export DOCKER_HOST=unix://$DOCKER_SOCK" >> "$USER_HOME/.profile"
   . "$USER_HOME/.bashrc.docker"
 
   log "Setting up systemd user service..."
@@ -313,10 +296,11 @@ Description=Docker Rootless Daemon
 After=network.target
 
 [Service]
-ExecStart=$BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --exec-opt native.cgroupdriver=cgroupfs
-Restart=always
+ExecStart=$BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --bridge=none --iptables=false --exec-opt native.cgroupdriver=cgroupfs
 Environment="PATH=$BIN_DIR:/usr/local/bin:/usr/bin:/bin"
 Environment="DOCKER_HOST=unix://$DOCKER_SOCK"
+Restart=always
+Type=simple
 
 [Install]
 WantedBy=default.target
@@ -330,9 +314,8 @@ EOF
   sleep 15
   if ! docker info >/dev/null 2>&1; then
     log "Error: Docker daemon failed to start."
-    log "Service status:"
     systemctl --user status docker.service
-    log "Check logs with: journalctl --user -u docker.service"
+    journalctl --user -u docker.service --no-pager
     exit 1
   fi
 
@@ -340,6 +323,7 @@ EOF
   if ! "$BIN_DIR/docker" run --rm hello-world >/dev/null 2>&1; then
     log "Error: Docker test failed."
     systemctl --user status docker.service
+    journalctl --user -u docker.service --no-pager
     exit 1
   fi
 
@@ -350,41 +334,6 @@ EOF
   fi
 
   log "Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION rootless installed successfully!"
-}
-
-install_docker_and_compose() {
-  log "This script will install Docker and Docker Compose, then set up Lumigator."
-  read -p "Proceed? (yes/no): " user_response
-  if [ "$user_response" != "yes" ]; then
-    log "Aborting installation."
-    exit 0
-  fi
-
-  detect_os_and_arch
-
-  case "$OS_TYPE" in
-  macos)
-    install_docker_macos
-    ;;
-  linux)
-    if check_docker_installed && check_compose_installed && check_docker_running; then
-      log "Docker and Compose are already set up."
-    else
-      log "Install Docker and Compose in rootless mode (y) or root-based mode (n)? (y/N): "
-      read -r resp
-      case "$resp" in
-      [yY]*) install_docker_linux_rootless ;;
-      *) install_docker_linux_root ;;
-      esac
-    fi
-    configure_docker_host
-    ;;
-  *)
-    log "Unsupported OS: $OS_TYPE"
-    exit 1
-    ;;
-  esac
-  log "Docker and Compose installation complete."
 }
 
 install_project() {
