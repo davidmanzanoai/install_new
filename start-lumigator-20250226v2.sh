@@ -39,20 +39,10 @@ check_docker_running() {
 }
 
 check_compose_installed() {
-  docker compose version >/dev/null 2>&1 || docker-compose version >/dev/null 2>&1 && return 0
+  docker compose version >/dev/null 2>&1 && return 0  # Removed docker-compose check as v2 is standard
   return 1
 }
 
-ensure_docker_running_linux() {
-  log "Checking if Docker service is active..."
-  if ! systemctl is-active --quiet docker; then
-    log "Starting Docker service..."
-    sudo systemctl start docker
-    sudo systemctl enable docker
-  fi
-}
-
-# Detect OS and architecture
 detect_os_and_arch() {
   OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')
   case "$OS_TYPE" in
@@ -220,6 +210,10 @@ install_docker_linux_rootless() {
 
   log "==> Installing Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION (rootless)..."
 
+  # **CHANGED**: Added prerequisite check statement
+  log "Prerequisites: Ensure 'uidmap' package is installed (e.g., 'sudo apt install uidmap') for newuidmap/newgidmap."
+  log "Also ensure user namespaces are enabled and sub-UID/GID ranges are set in /etc/subuid and /etc/subgid."
+
   if [ "$(id -u)" -eq 0 ]; then
     log "Error: This should not run as root for rootless mode."
     exit 1
@@ -241,6 +235,7 @@ install_docker_linux_rootless() {
   USER_NAME=$(whoami)
   if ! grep -q "^$USER_NAME:" /etc/subuid || ! grep -q "^$USER_NAME:" /etc/subgid; then
     log "Error: Sub-UID/GID ranges missing for $USER_NAME."
+    log "Run: 'sudo usermod -v 100000-165535 -w 100000-165535 $USER_NAME' to fix."
     exit 1
   fi
 
@@ -290,15 +285,16 @@ install_docker_linux_rootless() {
 
   log "Setting up systemd user service..."
   mkdir -p "$USER_HOME/.config/systemd/user"
+  # **CHANGED**: Simplified to use dockerd-rootless.sh, removed hardcoded paths and unnecessary publish flags
   cat << EOF > "$USER_HOME/.config/systemd/user/docker.service"
 [Unit]
 Description=Docker Rootless Daemon
 After=network.target
 
 [Service]
-ExecStart=/home/davidmanzanoai/bin/rootlesskit --net=slirp4netns --mtu=65520 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto --disable-host-loopback --port-driver=builtin --publish=9000:9000 --publish=9001:9001 --copy-up=/etc --copy-up=/run --propagation=rslave /home/davidmanzanoai/bin/dockerd --data-root /home/davidmanzanoai/.local/share/docker --pidfile /home/davidmanzanoai/.docker-rootless/docker.pid --log-level debug --userland-proxy=true --userland-proxy-path=/home/davidmanzanoai/bin/slirp4netns --bridge=none --iptables=false --exec-opt native.cgroupdriver=cgroupfs
-Environment="PATH=/home/davidmanzanoai/bin:/usr/local/bin:/usr/bin:/bin"
-Environment="DOCKER_HOST=unix:///run/user/1000/docker.sock"
+ExecStart=$BIN_DIR/dockerd-rootless.sh --data-root $USER_HOME/.local/share/docker --pidfile $DOCKER_ROOTLESS_DIR/docker.pid --log-level debug --userland-proxy=true --userland-proxy-path=$BIN_DIR/slirp4netns --bridge=none --iptables=false --exec-opt native.cgroupdriver=cgroupfs
+Environment="PATH=$BIN_DIR:/usr/local/bin:/usr/bin:/bin"
+Environment="DOCKER_HOST=unix://$DOCKER_SOCK"
 Restart=always
 Type=simple
 
@@ -310,25 +306,37 @@ EOF
   systemctl --user enable docker.service
   systemctl --user start docker.service
 
+  # **CHANGED**: Improved Docker startup check with timeout and diagnostics
   log "Waiting for Docker to start..."
-  sleep 15
+  for i in {1..10}; do
+    if docker info >/dev/null 2>&1; then
+      log "Docker is running."
+      break
+    fi
+    sleep 3
+  done
   if ! docker info >/dev/null 2>&1; then
-    log "Error: Docker daemon failed to start."
+    log "Error: Docker daemon failed to start after 30 seconds."
     systemctl --user status docker.service
-    journalctl --user -u docker.service --no-pager
+    journalctl --user -u docker.service --no-pager | tail -n 20
     exit 1
   fi
 
+  # **CHANGED**: Enhanced verification with output for user feedback
   log "Verifying Docker with hello-world container..."
-  if ! "$BIN_DIR/docker" run --rm hello-world >/dev/null 2>&1; then
+  if "$BIN_DIR/docker" run --rm hello-world; then
+    log "Docker test passed."
+  else
     log "Error: Docker test failed."
     systemctl --user status docker.service
-    journalctl --user -u docker.service --no-pager
+    journalctl --user -u docker.service --no-pager | tail -n 20
     exit 1
   fi
 
   log "Verifying Docker Compose..."
-  if ! "$BIN_DIR/docker" compose version >/dev/null 2>&1; then
+  if "$BIN_DIR/docker" compose version; then
+    log "Docker Compose is installed."
+  else
     log "Error: Docker Compose verification failed."
     exit 1
   fi
@@ -359,13 +367,15 @@ install_docker_and_compose() {
       case "$resp" in
       [yY]*)
         install_docker_linux_rootless
+        # **CHANGED**: Set DOCKER_INSTALL_MODE for later use
+        DOCKER_INSTALL_MODE="rootless"
         ;;
       *)
         install_docker_linux_root
+        DOCKER_INSTALL_MODE="root"
         ;;
       esac
     fi
-    # Ensure DOCKER_HOST is properly set after installation
     configure_docker_host
   ;;
   *)
@@ -398,6 +408,15 @@ install_project() {
   mv lumigator-${LUMIGATOR_VERSION}/.* "$LUMIGATOR_TARGET_DIR" 2>/dev/null || true
   rmdir lumigator-${LUMIGATOR_VERSION}
   rm lumigator.zip
+
+  # **CHANGED**: Patch docker-compose.yaml for rootless mode to avoid privileged port 80
+  if [ "$DOCKER_INSTALL_MODE" = "rootless" ]; then
+    log "Patching docker-compose.yaml for rootless mode: changing frontend port from 80 to 8080."
+    sed -i 's/- 80:80/- 8080:80/g' "$LUMIGATOR_TARGET_DIR/docker-compose.yaml"
+    LUMIGATOR_URL="http://localhost:8080"
+  else
+    LUMIGATOR_URL="http://localhost:80"
+  fi
 }
 
 main() {
@@ -411,7 +430,7 @@ main() {
   LUMIGATOR_REPO_URL="https://github.com/mozilla-ai/lumigator"
   LUMIGATOR_REPO_TAG="refs/tags/v"
   LUMIGATOR_VERSION="0.1.0-alpha"
-  LUMIGATOR_URL="http://localhost:80"
+  LUMIGATOR_URL="http://localhost:80"  # Default, may be overridden
 
   while [ "$#" -gt 0 ]; do
     case $1 in
@@ -437,6 +456,8 @@ main() {
     DOCKER_MODE=$(detect_docker_mode)
     if [ "$DOCKER_MODE" = "rootless" ]; then
       export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
+      # **CHANGED**: Added user guidance for rootless mode
+      log "Note: In rootless mode, the frontend is accessible at http://localhost:8080 instead of port 80."
     fi
     log "Starting Lumigator..."
     make start-lumigator || { log "Failed to start Lumigator."; exit 1; }
