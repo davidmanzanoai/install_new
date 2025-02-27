@@ -1,8 +1,9 @@
 #!/bin/bash
 #
-# setup_lumigator.sh
+# install_lumigator.sh
 #
 # A script to set up Lumigator locally, installing Docker and Docker Compose as needed.
+# Working for macOS and Linux (root-based and rootless Docker scenarios).
 
 set -e
 
@@ -39,7 +40,7 @@ check_docker_running() {
 }
 
 check_compose_installed() {
-  docker compose version >/dev/null 2>&1 && return 0  # Removed docker-compose check as v2 is standard
+  docker compose version >/dev/null 2>&1 && return 0  
   return 1
 }
 
@@ -210,7 +211,7 @@ install_docker_linux_rootless() {
 
   log "==> Installing Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION (rootless)..."
 
-  # Added prerequisite check statement
+  # Added prerequisite check statement be sure you have all those before installing docker in rootless mode
   log "Prerequisites: Ensure 'uidmap' package is installed (e.g., 'sudo apt install uidmap') for newuidmap/newgidmap."
   log "Also ensure user namespaces are enabled and sub-UID/GID ranges are set in /etc/subuid and /etc/subgid."
   log "Check with your IT administrator if you are unsure."
@@ -286,7 +287,7 @@ install_docker_linux_rootless() {
 
   log "Setting up systemd user service..."
   mkdir -p "$USER_HOME/.config/systemd/user"
-  # **CHANGED**: Simplified to use dockerd-rootless.sh, removed hardcoded paths and unnecessary publish flags
+
   cat << EOF > "$USER_HOME/.config/systemd/user/docker.service"
 [Unit]
 Description=Docker Rootless Daemon
@@ -307,7 +308,7 @@ EOF
   systemctl --user enable docker.service
   systemctl --user start docker.service
 
-  # **CHANGED**: Improved Docker startup check with timeout and diagnostics
+  # Docker startup 
   log "Waiting for Docker to start..."
   for i in {1..10}; do
     if docker info >/dev/null 2>&1; then
@@ -323,7 +324,6 @@ EOF
     exit 1
   fi
 
-  # **CHANGED**: Enhanced verification with output for user feedback
   log "Verifying Docker with hello-world container..."
   if "$BIN_DIR/docker" run --rm hello-world; then
     log "Docker test passed."
@@ -368,7 +368,6 @@ install_docker_and_compose() {
       case "$resp" in
       [yY]*)
         install_docker_linux_rootless
-        # **CHANGED**: Set DOCKER_INSTALL_MODE for later use
         DOCKER_INSTALL_MODE="rootless"
         ;;
       *)
@@ -410,7 +409,6 @@ install_project() {
   rmdir lumigator-${LUMIGATOR_VERSION}
   rm lumigator.zip
 
-  # **CHANGED**: Patch docker-compose.yaml for rootless mode to avoid privileged port 80
   if [ "$DOCKER_INSTALL_MODE" = "rootless" ]; then
     log "Patching docker-compose.yaml for rootless mode: changing frontend port from 80 to 8080."
     sed -i 's/- 80:80/- 8080:80/g' "$LUMIGATOR_TARGET_DIR/docker-compose.yaml"
@@ -431,7 +429,7 @@ main() {
   LUMIGATOR_REPO_URL="https://github.com/mozilla-ai/lumigator"
   LUMIGATOR_REPO_TAG="refs/tags/v"
   LUMIGATOR_VERSION="0.1.0-alpha"
-  LUMIGATOR_URL="http://localhost:80"  # Default, may be overridden
+  LUMIGATOR_URL="http://localhost:80"  
 
   while [ "$#" -gt 0 ]; do
     case $1 in
