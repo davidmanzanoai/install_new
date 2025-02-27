@@ -210,9 +210,10 @@ install_docker_linux_rootless() {
 
   log "==> Installing Docker $DOCKER_VERSION and Compose $COMPOSE_VERSION (rootless)..."
 
-  # **CHANGED**: Added prerequisite check statement
+  # Added prerequisite check statement
   log "Prerequisites: Ensure 'uidmap' package is installed (e.g., 'sudo apt install uidmap') for newuidmap/newgidmap."
   log "Also ensure user namespaces are enabled and sub-UID/GID ranges are set in /etc/subuid and /etc/subgid."
+  log "Check with your IT administrator if you are unsure."
 
   if [ "$(id -u)" -eq 0 ]; then
     log "Error: This should not run as root for rootless mode."
@@ -456,8 +457,6 @@ main() {
     DOCKER_MODE=$(detect_docker_mode)
     if [ "$DOCKER_MODE" = "rootless" ]; then
       export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
-      # **CHANGED**: Added user guidance for rootless mode
-      log "Note: In rootless mode, the frontend is accessible at http://localhost:8080 instead of port 80."
     fi
     log "Starting Lumigator..."
     make start-lumigator || { log "Failed to start Lumigator."; exit 1; }
